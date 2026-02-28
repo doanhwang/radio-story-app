@@ -30,7 +30,7 @@ async function initDB() {
 // ─── 미들웨어 ─────────────────────────────────────
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname, 'public'));
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 // ─── 음성 파일 업로드 설정 ─────────────────────────
