@@ -10,12 +10,10 @@ const { JSONFile } = require('lowdb/node');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// 폴더 생성
 const UPLOADS_DIR = path.join('/tmp', 'uploads');
 const DATA_FILE = path.join('/tmp', 'stories.json');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-// DB
 const adapter = new JSONFile(DATA_FILE);
 const db = new Low(adapter, { stories: [] });
 
@@ -25,18 +23,21 @@ async function initDB() {
   await db.write();
 }
 
-// 미들웨어
 app.use(cors());
 app.use(express.json());
 
-// index.html 서빙
+// 클라이언트 앱 (사연 보내기)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// 관리자 앱 (비밀번호로 보호)
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// 음성 업로드
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => {
@@ -46,22 +47,17 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
-// API: 사연 제출
 app.post('/api/stories', upload.single('voice'), async (req, res) => {
   try {
     await db.read();
     const { name, contact, text, category, emotions } = req.body;
     if (!text && !req.file) return res.status(400).json({ error: '텍스트 또는 음성을 입력해주세요.' });
     const story = {
-      id: uuidv4(),
-      name: name || '익명',
-      contact: contact || '',
-      text: text || '',
-      category: category || '',
+      id: uuidv4(), name: name || '익명', contact: contact || '',
+      text: text || '', category: category || '',
       emotions: emotions ? JSON.parse(emotions) : [],
       voiceFile: req.file ? req.file.filename : null,
-      hasVoice: !!req.file,
-      timestamp: new Date().toISOString()
+      hasVoice: !!req.file, timestamp: new Date().toISOString()
     };
     db.data.stories.unshift(story);
     await db.write();
@@ -72,10 +68,9 @@ app.post('/api/stories', upload.single('voice'), async (req, res) => {
   }
 });
 
-// API: 사연 목록
 app.get('/api/stories', async (req, res) => {
   await db.read();
-  const { filter, limit = 100 } = req.query;
+  const { filter, limit = 500 } = req.query;
   let list = db.data.stories;
   if (filter && filter !== '전체') {
     if (filter === '텍스트') list = list.filter(s => s.text && !s.hasVoice);
@@ -88,7 +83,6 @@ app.get('/api/stories', async (req, res) => {
   res.json({ total: list.length, items });
 });
 
-// API: 통계
 app.get('/api/stats', async (req, res) => {
   await db.read();
   const stories = db.data.stories;
@@ -101,7 +95,6 @@ app.get('/api/stats', async (req, res) => {
   });
 });
 
-// API: 사연 삭제
 app.delete('/api/stories/:id', async (req, res) => {
   await db.read();
   const story = db.data.stories.find(s => s.id === req.params.id);
@@ -114,7 +107,6 @@ app.delete('/api/stories/:id', async (req, res) => {
   res.json({ success: true });
 });
 
-// API: 전체 삭제
 app.delete('/api/stories', async (req, res) => {
   await db.read();
   db.data.stories.forEach(s => {
@@ -128,10 +120,10 @@ app.delete('/api/stories', async (req, res) => {
   res.json({ success: true });
 });
 
-// 시작
 initDB().then(() => {
   app.listen(PORT, () => {
     console.log(`🎙️  라디오 사연 서버 실행 중`);
-    console.log(`📡  http://localhost:${PORT}`);
+    console.log(`📡  사연 보내기: http://localhost:${PORT}`);
+    console.log(`🔐  관리자: http://localhost:${PORT}/admin`);
   });
 });
