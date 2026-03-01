@@ -27,6 +27,7 @@ app.get('/manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'manif
 app.get('/service-worker.js', (req, res) => res.sendFile(path.join(__dirname, 'service-worker.js')));
 app.get('/icon-192.png', (req, res) => res.sendFile(path.join(__dirname, 'icon-192.png')));
 app.get('/icon-512.png', (req, res) => res.sendFile(path.join(__dirname, 'icon-512.png')));
+app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, 'privacy.html')));
 
 // 음성 업로드 임시 저장
 const storage = multer.diskStorage({
