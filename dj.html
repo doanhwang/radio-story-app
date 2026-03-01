@@ -440,6 +440,28 @@ body {
           <div class="progress-fill" id="progress-fill"></div>
         </div>
 
+        <!-- 비용 표시 -->
+        <div id="cost-box" style="display:none;
+          background:var(--card); border:1px solid var(--border);
+          border-radius:10px; padding:0.9rem 1.2rem; margin-bottom:1rem;
+          display:none; flex-direction:column; gap:0.4rem;">
+          <div style="font-size:0.7rem;font-family:'DM Mono',monospace;
+            color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;
+            margin-bottom:0.2rem;">💰 API 사용 비용</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+            <div style="font-size:0.82rem;color:var(--text);">
+              이번 생성:
+              <span id="cost-this" style="color:var(--gold);font-family:'DM Mono',monospace;font-weight:700;">—</span>
+              <span id="cost-tokens" style="color:var(--muted);font-size:0.72rem;margin-left:0.4rem;"></span>
+            </div>
+            <div style="font-size:0.82rem;color:var(--text);">
+              누적 합계:
+              <span id="cost-total" style="color:var(--cyan);font-family:'DM Mono',monospace;font-weight:700;">—</span>
+              <span id="cost-count" style="color:var(--muted);font-size:0.72rem;margin-left:0.4rem;"></span>
+            </div>
+          </div>
+        </div>
+
         <button class="generate-btn" id="gen-btn" onclick="generateBroadcast()">
           ✨ 라디오 방송 제작하기
         </button>
@@ -718,7 +740,12 @@ async function generateBroadcast(){
     const response = await fetch('/api/dj/generate', {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({
+        prompt,
+        story_id:   selectedStory.id,
+        story_name: selectedStory.name,
+        dj_name:    djName
+      })
     });
 
     // 서버 오류 체크
@@ -769,6 +796,9 @@ async function generateBroadcast(){
     parseAndRender(fullText, true);
     fill.style.width = '100%';
     setTimeout(() => { bar.style.display = 'none'; fill.style.width = '0%'; }, 800);
+
+    // 비용 조회 및 표시
+    await loadUsageCost();
 
   } catch(e) {
     showToast('❗ ' + e.message);
@@ -929,6 +959,41 @@ function copyAll(){
 }
 
 // ── 유틸 ──────────────────────────────────────
+// ── 비용 조회 ─────────────────────────────────
+async function loadUsageCost(){
+  try {
+    const res = await fetch('/api/dj/usage');
+    const d = await res.json();
+    if(!d.records || !d.records.length) return;
+
+    // 이번 생성 (가장 최근 레코드)
+    const latest = d.records[0];
+    const thisCost = latest.total_cost_usd || 0;
+    const inTok  = latest.input_tokens  || 0;
+    const outTok = latest.output_tokens || 0;
+
+    document.getElementById('cost-this').textContent =
+      '$' + thisCost.toFixed(5) +
+      ' (₩' + Math.round(thisCost * 1380).toLocaleString() + ')';
+    document.getElementById('cost-tokens').textContent =
+      `in:${inTok.toLocaleString()} / out:${outTok.toLocaleString()} tokens`;
+
+    // 누적
+    const totalCost = d.total_cost || 0;
+    document.getElementById('cost-total').textContent =
+      '$' + totalCost.toFixed(4) +
+      ' (₩' + Math.round(totalCost * 1380).toLocaleString() + ')';
+    document.getElementById('cost-count').textContent =
+      `총 ${d.count}회 생성`;
+
+    // 박스 표시
+    const box = document.getElementById('cost-box');
+    box.style.display = 'flex';
+  } catch(e) {
+    console.error('비용 조회 실패:', e);
+  }
+}
+
 function showToast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
