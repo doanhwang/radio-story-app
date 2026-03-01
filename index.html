@@ -426,18 +426,7 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
   to   { opacity:1; transform: translateY(0); }
 }
 
-.skip-btn {
-  position: absolute;
-  bottom: 2rem; right: 2rem;
-  font-size: 0.72rem;
-  color: #c0c0d0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  letter-spacing: 0.1em;
-  transition: color 0.2s;
-}
-.skip-btn:hover { color: #8b65cc; }
+
 
 /* ─── 오프닝 ─── */
 #opening {
@@ -468,12 +457,7 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
   letter-spacing:0.3em; text-transform:uppercase;
   animation: fadeInUp 1s ease 0.8s both;
 }
-.opening-tap {
-  position:absolute; bottom:3rem;
-  font-size:0.78rem; color:#5a4030;
-  letter-spacing:0.2em; text-transform:uppercase;
-  animation: blink 1.5s ease-in-out infinite 2s;
-}
+
 @keyframes fadeInUp {
   from{ opacity:0; transform:translateY(16px); }
   to{ opacity:1; transform:translateY(0); }
@@ -562,7 +546,6 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
   <div class="opening-title">라디오 사연함</div>
   <div class="opening-sub">Radio Story</div>
   <div class="tuning-bar"><div class="tuning-needle"></div></div>
-  <div class="opening-tap">✦ 화면을 터치하여 시작 ✦</div>
 </div>
 
 <header class="site-header">
@@ -745,15 +728,23 @@ function playRadioSound(){
   });
 }
 
-async function closeOpening(){
+function closeOpening(){
   const el = document.getElementById('opening');
-  await playRadioSound();
-  el.classList.add('fade-out');
-  setTimeout(() => el.style.display='none', 800);
+  // 소리와 애니메이션 동시 시작
+  playRadioSound().then(() => {
+    el.classList.add('fade-out');
+    setTimeout(() => el.style.display='none', 800);
+  });
+  // 소리 시작 즉시 playRadioSound 호출 (동시)
 }
 
 // 페이지 로드 즉시 자동 실행
-window.addEventListener('load', closeOpening);
+window.addEventListener('load', () => {
+  playRadioSound().then(() => {
+    const el = document.getElementById('opening');
+    if(el){ el.classList.add('fade-out'); setTimeout(()=>el.style.display='none', 800); }
+  });
+});
 
 let selCat='', selEmos=[];
 let recorder=null, chunks=[], recBlob=null, uploadedFile=null;
@@ -976,7 +967,6 @@ function resetForm(){
   </div>
   <div class="opening-title">라디오 사연함</div>
   <div class="opening-sub">당신의 이야기를 들려주세요 ✦</div>
-  <button class="skip-btn" >SKIP ▶</button>
 </div>
 
 
