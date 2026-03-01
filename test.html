@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>통합 테스트 — 라디오 사연함</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080c10;--surface:#0d1117;--card:#111820;
+  --border:#1e2a38;--text:#e0eaf4;--muted:#5a7a9a;
+  --green:#00e676;--red:#ff4d4d;--amber:#ffc107;--cyan:#00d4ff;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:2rem 1.5rem;}
+.header{text-align:center;margin-bottom:2.5rem;}
+.header h1{font-family:'DM Mono',monospace;font-size:1.4rem;color:var(--cyan);margin-bottom:0.4rem;}
+.header p{font-size:0.85rem;color:var(--muted);}
+.target{display:flex;align-items:center;gap:0.6rem;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.8rem 1rem;margin-bottom:1.5rem;}
+.target label{font-size:0.8rem;color:var(--muted);white-space:nowrap;}
+.target input{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.5rem 0.8rem;color:var(--text);font-family:'DM Mono',monospace;font-size:0.85rem;outline:none;}
+.target input:focus{border-color:var(--cyan);}
+.run-btn{padding:0.7rem 2rem;background:var(--cyan);color:#000;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.run-btn:hover{background:#00b8d9;}
+.run-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:0.8rem;margin-bottom:1.5rem;}
+.sum-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem;text-align:center;}
+.sum-card .n{font-family:'DM Mono',monospace;font-size:1.8rem;font-weight:500;}
+.sum-card .l{font-size:0.72rem;color:var(--muted);margin-top:0.2rem;}
+.n.pass{color:var(--green);}
+.n.fail{color:var(--red);}
+.n.skip{color:var(--amber);}
+.n.total{color:var(--cyan);}
+
+.test-list{display:flex;flex-direction:column;gap:0.6rem;}
+.test-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;display:flex;align-items:flex-start;gap:1rem;transition:border-color 0.3s;}
+.test-item.pass{border-color:rgba(0,230,118,0.3);}
+.test-item.fail{border-color:rgba(255,77,77,0.3);}
+.test-item.running{border-color:rgba(0,212,255,0.3);}
+.status-icon{font-size:1.2rem;min-width:24px;margin-top:1px;}
+.test-info{flex:1;}
+.test-name{font-size:0.9rem;font-weight:600;margin-bottom:0.2rem;}
+.test-desc{font-size:0.78rem;color:var(--muted);}
+.test-result{font-size:0.78rem;margin-top:0.4rem;font-family:'DM Mono',monospace;padding:0.3rem 0.6rem;border-radius:4px;display:inline-block;}
+.test-result.ok{background:rgba(0,230,118,0.1);color:var(--green);}
+.test-result.err{background:rgba(255,77,77,0.1);color:var(--red);}
+.test-result.info{background:rgba(0,212,255,0.1);color:var(--cyan);}
+.test-time{font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--muted);white-space:nowrap;margin-top:2px;}
+
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(0,212,255,0.3);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.log-area{margin-top:1.5rem;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem;}
+.log-area h3{font-size:0.75rem;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.8rem;}
+.log-lines{font-family:'DM Mono',monospace;font-size:0.78rem;line-height:1.7;max-height:200px;overflow-y:auto;}
+.log-ok{color:var(--green);}
+.log-err{color:var(--red);}
+.log-info{color:var(--cyan);}
+.log-warn{color:var(--amber);}
+
+@media(max-width:600px){
+  .summary{grid-template-columns:repeat(2,1fr);}
+  .target{flex-direction:column;align-items:stretch;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧪 통합 테스트</h1>
+  <p>라디오 사연함 — 전체 기능 자동 검증</p>
+</div>
+
+<div class="target">
+  <label>서버 주소</label>
+  <input type="text" id="base-url" value="https://radio-story-app-production.up.railway.app">
+  <button class="run-btn" id="run-btn" onclick="runAll()">▶ 전체 실행</button>
+</div>
+
+<div class="summary">
+  <div class="sum-card"><div class="n total" id="s-total">0</div><div class="l">전체</div></div>
+  <div class="sum-card"><div class="n pass" id="s-pass">0</div><div class="l">통과 ✅</div></div>
+  <div class="sum-card"><div class="n fail" id="s-fail">0</div><div class="l">실패 ❌</div></div>
+  <div class="sum-card"><div class="n skip" id="s-skip">0</div><div class="l">대기 ⏳</div></div>
+</div>
+
+<div class="test-list" id="test-list"></div>
+
+<div class="log-area">
+  <h3>실행 로그</h3>
+  <div class="log-lines" id="log"></div>
+</div>
+
+<script>
+const TESTS = [
+  {
+    id: 'server',
+    name: '서버 응답 확인',
+    desc: '서버가 정상적으로 실행 중인지 확인',
+    run: async (base) => {
+      const res = await fetch(base, { signal: AbortSignal.timeout(8000) });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return `HTTP ${res.status} OK`;
+    }
+  },
+  {
+    id: 'admin',
+    name: '관리자 페이지 응답',
+    desc: '/admin 페이지가 정상 로드되는지 확인',
+    run: async (base) => {
+      const res = await fetch(`${base}/admin`, { signal: AbortSignal.timeout(8000) });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return `HTTP ${res.status} OK`;
+    }
+  },
+  {
+    id: 'stats',
+    name: 'API 통계 조회',
+    desc: '/api/stats 엔드포인트 정상 응답 확인',
+    run: async (base) => {
+      const res = await fetch(`${base}/api/stats`, { signal: AbortSignal.timeout(8000) });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      if(typeof d.total !== 'number') throw new Error('응답 형식 오류');
+      return `전체 ${d.total}건 / 오늘 ${d.todayCount}건`;
+    }
+  },
+  {
+    id: 'stories-get',
+    name: 'API 사연 목록 조회',
+    desc: '/api/stories 엔드포인트 정상 응답 확인',
+    run: async (base) => {
+      const res = await fetch(`${base}/api/stories?limit=5`, { signal: AbortSignal.timeout(8000) });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      if(!Array.isArray(d.items)) throw new Error('응답 형식 오류');
+      return `${d.items.length}건 조회됨`;
+    }
+  },
+  {
+    id: 'story-post',
+    name: 'API 텍스트 사연 제출',
+    desc: '텍스트 사연을 실제로 제출하고 저장 확인',
+    run: async (base) => {
+      const fd = new FormData();
+      fd.append('name', '테스트봇');
+      fd.append('text', `[자동테스트] ${new Date().toLocaleString('ko-KR')} — 이 사연은 통합 테스트가 자동 생성했습니다.`);
+      fd.append('category', '✨ 기타');
+      fd.append('emotions', JSON.stringify(['💫 희망']));
+      const res = await fetch(`${base}/api/stories`, { method:'POST', body:fd, signal: AbortSignal.timeout(10000) });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      if(!d.success) throw new Error(d.error || '제출 실패');
+      window._testStoryId = d.id;
+      return `사연 ID: ${d.id.slice(0,8)}...`;
+    }
+  },
+  {
+    id: 'story-verify',
+    name: 'DB 저장 확인',
+    desc: '제출한 사연이 DB에 실제로 저장됐는지 확인',
+    run: async (base) => {
+      if(!window._testStoryId) throw new Error('이전 테스트 실패로 건너뜀');
+      await new Promise(r => setTimeout(r, 1000));
+      const res = await fetch(`${base}/api/stories?limit=10`, { signal: AbortSignal.timeout(8000) });
+      const d = await res.json();
+      const found = d.items.find(s => s.id === window._testStoryId);
+      if(!found) throw new Error('DB에서 사연을 찾을 수 없음');
+      return `DB 저장 확인 완료 — "${found.name}"`;
+    }
+  },
+  {
+    id: 'story-delete',
+    name: '테스트 사연 삭제',
+    desc: '테스트용 사연을 정리 (삭제 API 확인)',
+    run: async (base) => {
+      if(!window._testStoryId) throw new Error('삭제할 사연 없음');
+      const res = await fetch(`${base}/api/stories/${window._testStoryId}`, { method:'DELETE', signal: AbortSignal.timeout(8000) });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      if(!d.success) throw new Error('삭제 실패');
+      return '테스트 사연 삭제 완료';
+    }
+  },
+  {
+    id: 'supabase',
+    name: 'Supabase 연결 상태',
+    desc: 'DB 응답 속도 및 연결 안정성 확인',
+    run: async (base) => {
+      const start = Date.now();
+      const res = await fetch(`${base}/api/stats`, { signal: AbortSignal.timeout(8000) });
+      const ms = Date.now() - start;
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      if(ms > 5000) throw new Error(`응답 너무 느림: ${ms}ms`);
+      return `응답속도 ${ms}ms ${ms < 1000 ? '🟢 빠름' : ms < 3000 ? '🟡 보통' : '🔴 느림'}`;
+    }
+  },
+  {
+    id: 'voice-upload',
+    name: 'Supabase Storage 음성 업로드',
+    desc: '음성 파일을 실제로 업로드하고 URL 확인',
+    run: async (base) => {
+      // 짧은 무음 WebM blob 생성
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.5, audioCtx.sampleRate);
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+
+      // MediaRecorder로 blob 생성
+      const dest = audioCtx.createMediaStreamDestination();
+      source.connect(dest);
+      source.start();
+
+      const rec = new MediaRecorder(dest.stream);
+      const chunks = [];
+      rec.ondataavailable = e => chunks.push(e.data);
+      rec.start();
+      await new Promise(r => setTimeout(r, 600));
+      rec.stop();
+      await new Promise(r => rec.onstop = r);
+      audioCtx.close();
+
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const fd = new FormData();
+      fd.append('name', '테스트봇');
+      fd.append('text', '');
+      fd.append('category', '✨ 기타');
+      fd.append('emotions', '[]');
+      fd.append('voice', blob, 'test.webm');
+
+      const res = await fetch(`${base}/api/stories`, { method:'POST', body:fd, signal: AbortSignal.timeout(15000) });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      if(!d.success) throw new Error(d.error || '업로드 실패');
+      window._testVoiceId = d.id;
+
+      // 저장된 URL 확인
+      await new Promise(r => setTimeout(r, 1000));
+      const listRes = await fetch(`${base}/api/stories?limit=5`);
+      const list = await listRes.json();
+      const found = list.items.find(s => s.id === d.id);
+      if(!found) throw new Error('저장 확인 실패');
+      if(!found.voiceUrl) throw new Error('Storage URL 없음');
+
+      // 테스트 사연 삭제
+      await fetch(`${base}/api/stories/${d.id}`, { method:'DELETE' });
+
+      return `Storage URL 확인 완료`;
+    }
+  },
+  {
+    id: 'speech',
+    name: '브라우저 받아쓰기 지원',
+    desc: 'SpeechRecognition API 지원 여부 확인',
+    run: async (base) => {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if(!SR) throw new Error('이 브라우저는 받아쓰기 미지원');
+      return '받아쓰기 API 지원됨 ✅';
+    }
+  },
+  {
+    id: 'mic',
+    name: '마이크 권한 확인',
+    desc: '마이크 접근 권한이 허용돼 있는지 확인',
+    run: async (base) => {
+      const result = await navigator.permissions.query({ name: 'microphone' });
+      if(result.state === 'denied') throw new Error('마이크 권한 거부됨');
+      if(result.state === 'prompt') return '권한 미결정 (첫 사용 시 허용 필요)';
+      return `마이크 권한: ${result.state}`;
+    }
+  },
+];
+
+let results = {};
+
+function log(msg, type='info'){
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  const time = new Date().toLocaleTimeString('ko-KR');
+  line.className = `log-${type}`;
+  line.textContent = `[${time}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function updateSummary(){
+  const pass = Object.values(results).filter(r=>r==='pass').length;
+  const fail = Object.values(results).filter(r=>r==='fail').length;
+  const total = TESTS.length;
+  const skip = total - pass - fail;
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-pass').textContent = pass;
+  document.getElementById('s-fail').textContent = fail;
+  document.getElementById('s-skip').textContent = skip;
+}
+
+function renderTests(){
+  const list = document.getElementById('test-list');
+  list.innerHTML = TESTS.map(t => `
+    <div class="test-item" id="item-${t.id}">
+      <div class="status-icon" id="icon-${t.id}">⏳</div>
+      <div class="test-info">
+        <div class="test-name">${t.name}</div>
+        <div class="test-desc">${t.desc}</div>
+        <div id="result-${t.id}"></div>
+      </div>
+      <div class="test-time" id="time-${t.id}"></div>
+    </div>
+  `).join('');
+}
+
+function setRunning(id){
+  document.getElementById(`icon-${id}`).innerHTML = '<div class="spinner"></div>';
+  document.getElementById(`item-${id}`).className = 'test-item running';
+}
+
+function setPass(id, msg, ms){
+  document.getElementById(`icon-${id}`).textContent = '✅';
+  document.getElementById(`item-${id}`).className = 'test-item pass';
+  document.getElementById(`result-${id}`).innerHTML = `<span class="test-result ok">${msg}</span>`;
+  document.getElementById(`time-${id}`).textContent = `${ms}ms`;
+  results[id] = 'pass';
+}
+
+function setFail(id, msg, ms){
+  document.getElementById(`icon-${id}`).textContent = '❌';
+  document.getElementById(`item-${id}`).className = 'test-item fail';
+  document.getElementById(`result-${id}`).innerHTML = `<span class="test-result err">${msg}</span>`;
+  document.getElementById(`time-${id}`).textContent = ms ? `${ms}ms` : '';
+  results[id] = 'fail';
+}
+
+async function runAll(){
+  const base = document.getElementById('base-url').value.replace(/\/$/, '');
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true; btn.textContent = '실행 중...';
+  results = {};
+  document.getElementById('log').innerHTML = '';
+  renderTests();
+  updateSummary();
+
+  log(`테스트 시작 — 대상: ${base}`, 'info');
+
+  for(const test of TESTS){
+    setRunning(test.id);
+    log(`[${test.name}] 실행 중...`, 'info');
+    const start = Date.now();
+    try{
+      const msg = await test.run(base);
+      const ms = Date.now() - start;
+      setPass(test.id, msg, ms);
+      log(`[${test.name}] ✅ ${msg} (${ms}ms)`, 'ok');
+    }catch(e){
+      const ms = Date.now() - start;
+      setFail(test.id, e.message, ms);
+      log(`[${test.name}] ❌ ${e.message}`, 'err');
+    }
+    updateSummary();
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  const pass = Object.values(results).filter(r=>r==='pass').length;
+  const fail = Object.values(results).filter(r=>r==='fail').length;
+  log(`테스트 완료 — 통과: ${pass} / 실패: ${fail}`, fail > 0 ? 'warn' : 'ok');
+  btn.disabled = false;
+  btn.textContent = '▶ 다시 실행';
+}
+
+renderTests();
+updateSummary();
+</script>
+</body>
+</html>
