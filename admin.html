@@ -226,10 +226,17 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer;}
 .mobile-header{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:var(--surface);border-bottom:1px solid var(--border);z-index:60;align-items:center;padding:0 1rem;gap:0.8rem;}
 .hamburger{background:none;border:none;color:var(--text);font-size:1.3rem;cursor:pointer;padding:0.3rem;}
 .mobile-title{font-family:'DM Mono',monospace;font-size:0.85rem;color:var(--cyan);}
-.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:55;backdrop-filter:blur(3px);}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:58;}
 .sidebar-overlay.open{display:block;}
 @media(max-width:640px){
-  .sidebar{display:flex;transform:translateX(-100%);transition:transform 0.3s ease;}
+  .sidebar{
+    display:flex;
+    position:fixed;top:0;left:0;height:100vh;
+    z-index:59;
+    transform:translateX(-100%);
+    transition:transform 0.3s ease;
+    width:240px;
+  }
   .sidebar.open{transform:translateX(0);}
   .main-content{margin-left:0;padding:1rem;padding-top:68px;}
   .mobile-header{display:flex;}
