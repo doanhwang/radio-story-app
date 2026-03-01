@@ -3,6 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
 
@@ -64,7 +65,61 @@ async function uploadToStorage(filePath, fileName) {
   return urlData.publicUrl;
 }
 
-// ─── 사연 제출 ─────────────────────────────────
+// ─── Claude API 프록시 (DJ 방송 생성) ─────────
+app.post('/api/dj/generate', async (req, res) => {
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!ANTHROPIC_KEY) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다.' });
+  }
+
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'prompt가 없습니다.' });
+
+  const body = JSON.stringify({
+    model: 'claude-opus-4-5',
+    max_tokens: 4000,
+    stream: true,
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  // SSE 스트리밍 헤더
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const options = {
+    hostname: 'api.anthropic.com',
+    path: '/v1/messages',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+      'Content-Length': Buffer.byteLength(body)
+    }
+  };
+
+  const apiReq = https.request(options, (apiRes) => {
+    apiRes.on('data', (chunk) => {
+      res.write(chunk);
+    });
+    apiRes.on('end', () => {
+      res.write('data: [DONE]\n\n');
+      res.end();
+    });
+  });
+
+  apiReq.on('error', (e) => {
+    res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
+    res.end();
+  });
+
+  apiReq.write(body);
+  apiReq.end();
+});
+
+
 app.post('/api/stories', upload.single('voice'), async (req, res) => {
   try {
     const { name, contact, text, category, emotions, audience_type } = req.body;
