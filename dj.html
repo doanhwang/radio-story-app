@@ -824,9 +824,12 @@ async function generateBroadcast(){
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({
         prompt,
-        story_id:   selectedStory.id,
-        story_name: selectedStory.name,
-        dj_name:    djName
+        story_id:    selectedStory.id,
+        story_name:  selectedStory.name,
+        story_text:  selectedStory.text,
+        dj_name:     djName,
+        dj_tone:     tone,
+        music_genre: genre
       })
     });
 
@@ -1120,7 +1123,6 @@ async function loadHistory(){
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
 
-    // 요약 통계
     const totalCost = Number(d.total_cost) || 0;
     document.getElementById('hs-count').textContent = (d.count || 0) + '회';
     document.getElementById('hs-usd').textContent = '$' + totalCost.toFixed(4);
@@ -1139,29 +1141,33 @@ async function loadHistory(){
       const dt   = r.created_at
         ? new Date(r.created_at).toLocaleString('ko-KR', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
         : '—';
-      return `<tr>
+      const hasFull = !!(r.full_text);
+      return `<tr style="cursor:${hasFull?'pointer':'default'}" onclick="${hasFull?`showDetail(${i})`:''}">
         <td style="color:var(--muted);font-family:'DM Mono',monospace;font-size:0.72rem;">${i+1}</td>
         <td>
           <div class="hist-story-name">${r.story_name || '—'}</div>
-          <div class="hist-dj">${r.dj_name || '—'} · ${r.model || '—'}</div>
+          <div class="hist-dj">${r.dj_name || '—'} · ${r.dj_tone||''} · ${r.music_genre||''}</div>
+        </td>
+        <td style="font-size:0.78rem;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          ${(r.story_text||'').slice(0,60)}${r.story_text&&r.story_text.length>60?'…':''}
         </td>
         <td>
           <div class="hist-cost">$${cost.toFixed(5)}</div>
           <div class="hist-won">₩${won.toLocaleString()}</div>
         </td>
-        <td class="hist-tokens">${inT.toLocaleString()} / ${outT.toLocaleString()}</td>
+        <td class="hist-tokens">${inT.toLocaleString()}<br>${outT.toLocaleString()}</td>
         <td class="hist-time">${dt}</td>
+        <td>${hasFull?'<span style="color:var(--gold);font-size:0.72rem;">📄 보기</span>':''}</td>
       </tr>`;
     }).join('');
+
+    historyData = d.records;
 
     wrap.innerHTML = `<table class="hist-table">
       <thead>
         <tr>
-          <th>#</th>
-          <th>사연자 · DJ</th>
-          <th>비용</th>
-          <th>토큰 (in/out)</th>
-          <th>일시</th>
+          <th>#</th><th>사연자 · DJ</th><th>사연 내용</th>
+          <th>비용</th><th>토큰<br>in/out</th><th>일시</th><th></th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -1170,6 +1176,75 @@ async function loadHistory(){
   } catch(e) {
     wrap.innerHTML = '<div class="hist-empty">❗ 불러오기 실패: ' + e.message + '</div>';
   }
+}
+
+let historyData = [];
+
+function showDetail(idx){
+  const r = historyData[idx];
+  if(!r || !r.full_text) return;
+
+  // 섹션 파싱
+  function extractSection(key){ 
+    const m = r.full_text.match(new RegExp('\\[SECTION:'+key+'\\]([\\s\\S]*?)(?:\\[/SECTION\\]|$)','i'));
+    return m ? m[1].replace(/\[SUNO:[^\]]+\][\s\S]*?\[\/SUNO\]/gi,'').replace(/\[LYRICS\][\s\S]*?\[\/LYRICS\]/gi,'').trim() : '';
+  }
+  function extractSuno(key){
+    const m = r.full_text.match(new RegExp('\\[SUNO:'+key+'\\]([\\s\\S]*?)\\[\/SUNO\\]','i'));
+    return m ? m[1].trim() : '';
+  }
+  function extractLyrics(){
+    const m = r.full_text.match(/\[LYRICS\]([\s\S]*?)\[\/LYRICS\]/i);
+    return m ? m[1].trim() : '';
+  }
+
+  const cost = Number(r.total_cost_usd)||0;
+  const dt = r.created_at ? new Date(r.created_at).toLocaleString('ko-KR') : '—';
+
+  const sections = [
+    ['🎵 인트로 음악', extractSection('intro_music'), extractSuno('intro'), ''],
+    ['🎤 DJ 오프닝 멘트', extractSection('opening'), '', ''],
+    ['💌 사연 소개', extractSection('story'), '', ''],
+    ['💬 DJ 소감 & 명언', extractSection('reflection'), '', ''],
+    ['🎁 선물 음악', extractSection('gift_music'), extractSuno('gift'), extractLyrics()],
+    ['🌙 클로징 멘트', extractSection('closing'), '', ''],
+    ['🎵 클로징 음악', extractSection('outro_music'), extractSuno('outro'), ''],
+  ];
+
+  const secHtml = sections.map(([title, content, suno, lyrics]) => {
+    if(!content && !suno && !lyrics) return '';
+    let html = `<div style="margin-bottom:1.2rem;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <div style="padding:0.7rem 1rem;background:var(--card2);font-size:0.8rem;font-weight:700;color:var(--text);">${title}</div>
+      <div style="padding:1rem;font-size:0.85rem;line-height:1.9;white-space:pre-wrap;color:var(--text);">${content}</div>`;
+    if(suno) html += `<div style="margin:0 1rem 1rem;background:rgba(160,128,240,0.06);border:1px solid rgba(160,128,240,0.2);border-radius:7px;padding:0.8rem;">
+      <div style="font-size:0.65rem;color:#a080f0;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:0.4rem;">SUNO PROMPT</div>
+      <div style="font-size:0.78rem;color:#c8b8f8;font-family:'DM Mono',monospace;line-height:1.6;">${suno}</div></div>`;
+    if(lyrics) html += `<div style="margin:0 1rem 1rem;background:rgba(240,192,96,0.05);border:1px solid rgba(240,192,96,0.2);border-radius:7px;padding:0.8rem;">
+      <div style="font-size:0.65rem;color:var(--gold);font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:0.4rem;">🎤 가사</div>
+      <div style="font-size:0.85rem;color:var(--text);line-height:2;white-space:pre-wrap;">${lyrics}</div></div>`;
+    html += '</div>';
+    return html;
+  }).join('');
+
+  document.getElementById('history-table-wrap').innerHTML = `
+    <div style="margin-bottom:1rem;">
+      <button class="btn btn-ghost" onclick="loadHistory()" style="margin-bottom:1rem;">← 목록으로</button>
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.2rem;">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;align-items:flex-start;">
+          <div>
+            <div style="font-size:1rem;font-weight:700;color:var(--gold);margin-bottom:0.3rem;">${r.story_name}님의 사연</div>
+            <div style="font-size:0.78rem;color:var(--muted);">${r.dj_name} · ${r.dj_tone||''} · ${r.music_genre||''}</div>
+            <div style="font-size:0.78rem;color:var(--muted);margin-top:0.3rem;">${dt}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:'DM Mono',monospace;font-size:1rem;font-weight:700;color:var(--gold);">$${cost.toFixed(5)}</div>
+            <div style="font-size:0.72rem;color:var(--muted);">₩${Math.round(cost*1380).toLocaleString()}</div>
+          </div>
+        </div>
+        ${r.story_text?`<div style="margin-top:0.8rem;padding:0.8rem;background:var(--card);border-radius:7px;font-size:0.82rem;line-height:1.8;color:var(--text);border-left:3px solid var(--gold);">${r.story_text}</div>`:''}
+      </div>
+      ${secHtml}
+    </div>`;
 }
 
 function showToast(msg){
