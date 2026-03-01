@@ -417,9 +417,45 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
   100%{ width:100%; }
 }
 
+
+/* 설치 배너 */
+#install-banner {
+  display:none;
+  position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%);
+  z-index:999;
+  background:#8b65cc;
+  color:#fff;
+  border-radius:50px;
+  padding:0.8rem 1.4rem;
+  align-items:center; gap:0.8rem;
+  box-shadow:0 4px 20px rgba(139,101,204,0.4);
+  font-size:0.88rem; font-weight:600;
+  white-space:nowrap;
+  animation: slideUp 0.4s ease;
+}
+@keyframes slideUp {
+  from{ transform:translateX(-50%) translateY(20px); opacity:0; }
+  to{ transform:translateX(-50%) translateY(0); opacity:1; }
+}
+#install-banner button {
+  background:rgba(255,255,255,0.25);
+  border:none; color:#fff;
+  padding:0.3rem 0.8rem; border-radius:20px;
+  font-size:0.82rem; font-weight:700; cursor:pointer;
+}
+#install-banner .close-btn {
+  background:none; border:none; color:rgba(255,255,255,0.7);
+  font-size:1.1rem; cursor:pointer; padding:0 0.2rem;
+}
 </style>
 </head>
 <body>
+
+<div id="install-banner">
+  📱 홈 화면에 앱으로 추가하기
+  <button onclick="installApp()">설치</button>
+  <button class="close-btn" onclick="this.parentElement.style.display='none'">✕</button>
+</div>
   <div class="o-sub">Radio Story</div>
   <div class="o-bar"><div class="o-needle"></div></div>
 </div>
@@ -745,11 +781,38 @@ function resetForm(){
 
 
 <script>
+// 서비스워커 등록
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js');
   });
 }
+
+// 설치 프롬프트 자동 표시
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  // 설치 배너 표시
+  const banner = document.getElementById('install-banner');
+  if(banner) banner.style.display = 'flex';
+});
+
+function installApp(){
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(result => {
+    document.getElementById('install-banner').style.display = 'none';
+    deferredPrompt = null;
+  });
+}
+
+// 이미 설치됐으면 배너 숨기기
+window.addEventListener('appinstalled', () => {
+  const banner = document.getElementById('install-banner');
+  if(banner) banner.style.display = 'none';
+});
 </script>
 </body>
 </html>
