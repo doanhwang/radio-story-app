@@ -418,44 +418,128 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
 }
 
 
-/* 설치 배너 */
-#install-banner {
+
+/* 설치 안내 팝업 */
+#install-guide {
   display:none;
-  position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%);
-  z-index:999;
-  background:#8b65cc;
-  color:#fff;
-  border-radius:50px;
-  padding:0.8rem 1.4rem;
-  align-items:center; gap:0.8rem;
-  box-shadow:0 4px 20px rgba(139,101,204,0.4);
-  font-size:0.88rem; font-weight:600;
-  white-space:nowrap;
-  animation: slideUp 0.4s ease;
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,0.5);
+  align-items:flex-end; justify-content:center;
+  padding-bottom:0;
 }
-@keyframes slideUp {
-  from{ transform:translateX(-50%) translateY(20px); opacity:0; }
-  to{ transform:translateX(-50%) translateY(0); opacity:1; }
+#install-guide.show { display:flex; }
+.install-card {
+  background:#fff;
+  border-radius:24px 24px 0 0;
+  padding:2rem 1.5rem 2.5rem;
+  width:100%; max-width:480px;
+  animation: slideUpCard 0.4s ease;
 }
-#install-banner button {
-  background:rgba(255,255,255,0.25);
-  border:none; color:#fff;
-  padding:0.3rem 0.8rem; border-radius:20px;
-  font-size:0.82rem; font-weight:700; cursor:pointer;
+@keyframes slideUpCard {
+  from{ transform:translateY(100%); }
+  to{ transform:translateY(0); }
 }
-#install-banner .close-btn {
-  background:none; border:none; color:rgba(255,255,255,0.7);
-  font-size:1.1rem; cursor:pointer; padding:0 0.2rem;
+.install-card h3 {
+  font-family:'Nanum Myeongjo',serif;
+  font-size:1.2rem; font-weight:800;
+  color:#3d2f6b; text-align:center;
+  margin-bottom:0.3rem;
+}
+.install-card .sub {
+  font-size:0.8rem; color:#9985bb;
+  text-align:center; margin-bottom:1.5rem;
+}
+.install-steps {
+  display:flex; flex-direction:column; gap:0.9rem;
+  margin-bottom:1.5rem;
+}
+.install-step {
+  display:flex; align-items:center; gap:0.9rem;
+  background:#f8f4ff; border-radius:12px; padding:0.8rem 1rem;
+}
+.step-num {
+  width:28px; height:28px; min-width:28px;
+  background:#8b65cc; color:#fff;
+  border-radius:50%; display:flex;
+  align-items:center; justify-content:center;
+  font-size:0.78rem; font-weight:700;
+}
+.step-text { font-size:0.85rem; color:#3d2f6b; line-height:1.4; }
+.step-text strong { color:#8b65cc; }
+.install-tabs {
+  display:flex; gap:0.5rem; margin-bottom:1.2rem;
+}
+.install-tab {
+  flex:1; padding:0.5rem;
+  border:2px solid #e2d8f5; border-radius:10px;
+  background:#fff; color:#9985bb;
+  font-size:0.8rem; font-weight:600; cursor:pointer;
+  transition:all 0.2s;
+}
+.install-tab.active {
+  border-color:#8b65cc; background:#f0eaff; color:#8b65cc;
+}
+.install-close {
+  width:100%; padding:0.9rem;
+  background:#8b65cc; color:#fff;
+  border:none; border-radius:50px;
+  font-size:0.95rem; font-weight:700; cursor:pointer;
+}
+.install-close:hover { background:#7a55bb; }
+.install-skip {
+  display:block; text-align:center;
+  margin-top:0.8rem; font-size:0.78rem;
+  color:#9985bb; cursor:pointer; text-decoration:underline;
 }
 </style>
 </head>
 <body>
 
-<div id="install-banner">
-  📱 홈 화면에 앱으로 추가하기
-  <button onclick="installApp()">설치</button>
-  <button class="close-btn" onclick="this.parentElement.style.display='none'">✕</button>
+<div id="install-guide">
+  <div class="install-card">
+    <h3>📱 앱으로 설치하기</h3>
+    <p class="sub">홈 화면에 추가하면 앱처럼 사용할 수 있어요</p>
+
+    <div class="install-tabs">
+      <button class="install-tab active" onclick="showTab('android')">🤖 안드로이드</button>
+      <button class="install-tab" onclick="showTab('ios')">🍎 아이폰</button>
+    </div>
+
+    <div id="tab-android" class="install-steps">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>크롬</strong>으로 이 페이지를 열어주세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-text">오른쪽 상단 <strong>⋮ 메뉴</strong>를 탭하세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>"홈 화면에 추가"</strong> 또는 <strong>"앱 설치"</strong>를 탭하세요</div>
+      </div>
+    </div>
+
+    <div id="tab-ios" class="install-steps" style="display:none">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>사파리</strong>로 이 페이지를 열어주세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-text">하단 <strong>공유 버튼 □↑</strong>을 탭하세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>"홈 화면에 추가"</strong>를 탭하세요</div>
+      </div>
+    </div>
+
+    <button class="install-close" onclick="closeInstallGuide()">확인했어요!</button>
+    <span class="install-skip" onclick="closeInstallGuide(true)">다시 보지 않기</span>
+  </div>
 </div>
+
   <div class="o-sub">Radio Story</div>
   <div class="o-bar"><div class="o-needle"></div></div>
 </div>
@@ -788,30 +872,33 @@ if('serviceWorker' in navigator){
   });
 }
 
-// 설치 프롬프트 자동 표시
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-
-  // 설치 배너 표시
-  const banner = document.getElementById('install-banner');
-  if(banner) banner.style.display = 'flex';
-});
-
-function installApp(){
-  if(!deferredPrompt) return;
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(result => {
-    document.getElementById('install-banner').style.display = 'none';
-    deferredPrompt = null;
+// 설치 안내 팝업
+function showTab(tab){
+  document.getElementById('tab-android').style.display = tab==='android' ? 'flex' : 'none';
+  document.getElementById('tab-ios').style.display = tab==='ios' ? 'flex' : 'none';
+  document.querySelectorAll('.install-tab').forEach((t,i) => {
+    t.classList.toggle('active', (tab==='android' && i===0)||(tab==='ios' && i===1));
   });
 }
 
-// 이미 설치됐으면 배너 숨기기
+function closeInstallGuide(skip=false){
+  document.getElementById('install-guide').classList.remove('show');
+  if(skip) localStorage.setItem('install-skip','1');
+}
+
+// 첫 접속 시 팝업 표시 (이미 설치됐거나 skip한 경우 제외)
+window.addEventListener('load', () => {
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
+  const isSkipped = localStorage.getItem('install-skip');
+  if(!isInstalled && !isSkipped){
+    setTimeout(() => {
+      document.getElementById('install-guide').classList.add('show');
+    }, 1500);
+  }
+});
+
 window.addEventListener('appinstalled', () => {
-  const banner = document.getElementById('install-banner');
-  if(banner) banner.style.display = 'none';
+  closeInstallGuide();
 });
 </script>
 </body>
