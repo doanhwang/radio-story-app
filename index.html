@@ -494,56 +494,6 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
 </style>
 </head>
 <body>
-
-<div id="install-guide">
-  <div class="install-card">
-    <h3>📱 앱으로 설치하기</h3>
-    <p class="sub">홈 화면에 추가하면 앱처럼 사용할 수 있어요</p>
-
-    <div class="install-tabs">
-      <button class="install-tab active" onclick="showTab('android')">🤖 안드로이드</button>
-      <button class="install-tab" onclick="showTab('ios')">🍎 아이폰</button>
-    </div>
-
-    <div id="tab-android" class="install-steps">
-      <div class="install-step">
-        <div class="step-num">1</div>
-        <div class="step-text"><strong>크롬</strong>으로 이 페이지를 열어주세요</div>
-      </div>
-      <div class="install-step">
-        <div class="step-num">2</div>
-        <div class="step-text">오른쪽 상단 <strong>⋮ 메뉴</strong>를 탭하세요</div>
-      </div>
-      <div class="install-step">
-        <div class="step-num">3</div>
-        <div class="step-text"><strong>"홈 화면에 추가"</strong> 또는 <strong>"앱 설치"</strong>를 탭하세요</div>
-      </div>
-    </div>
-
-    <div id="tab-ios" class="install-steps" style="display:none">
-      <div class="install-step">
-        <div class="step-num">1</div>
-        <div class="step-text"><strong>사파리</strong>로 이 페이지를 열어주세요</div>
-      </div>
-      <div class="install-step">
-        <div class="step-num">2</div>
-        <div class="step-text">하단 <strong>공유 버튼 □↑</strong>을 탭하세요</div>
-      </div>
-      <div class="install-step">
-        <div class="step-num">3</div>
-        <div class="step-text"><strong>"홈 화면에 추가"</strong>를 탭하세요</div>
-      </div>
-    </div>
-
-    <button class="install-close" onclick="closeInstallGuide()">확인했어요!</button>
-    <span class="install-skip" onclick="closeInstallGuide(true)">다시 보지 않기</span>
-  </div>
-</div>
-
-  <div class="o-sub">Radio Story</div>
-  <div class="o-bar"><div class="o-needle"></div></div>
-</div>
-
 <header class="site-header">
   <div class="radio-badge">
     <span class="dot"></span>
@@ -889,11 +839,13 @@ function closeInstallGuide(skip=false){
 // 첫 접속 시 팝업 표시 (이미 설치됐거나 skip한 경우 제외)
 window.addEventListener('load', () => {
   const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
-  const isSkipped = localStorage.getItem('install-skip');
+  let isSkipped = false;
+  try { isSkipped = localStorage.getItem('install-skip') === '1'; } catch(e){}
   if(!isInstalled && !isSkipped){
     setTimeout(() => {
-      document.getElementById('install-guide').classList.add('show');
-    }, 1500);
+      const el = document.getElementById('install-guide');
+      if(el) el.classList.add('show');
+    }, 2000);
   }
 });
 
@@ -901,5 +853,50 @@ window.addEventListener('appinstalled', () => {
   closeInstallGuide();
 });
 </script>
+
+<div id="install-guide">
+  <div class="install-card">
+    <h3>📱 앱으로 설치하기</h3>
+    <p class="sub">홈 화면에 추가하면 앱처럼 사용할 수 있어요</p>
+
+    <div class="install-tabs">
+      <button class="install-tab active" onclick="showTab('android')">🤖 안드로이드</button>
+      <button class="install-tab" onclick="showTab('ios')">🍎 아이폰</button>
+    </div>
+
+    <div id="tab-android" class="install-steps">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>크롬</strong>으로 이 페이지를 열어주세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-text">오른쪽 상단 <strong>⋮ 메뉴</strong>를 탭하세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>"홈 화면에 추가"</strong> 또는 <strong>"앱 설치"</strong>를 탭하세요</div>
+      </div>
+    </div>
+
+    <div id="tab-ios" class="install-steps" style="display:none">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>사파리</strong>로 이 페이지를 열어주세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-text">하단 <strong>공유 버튼 □↑</strong>을 탭하세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>"홈 화면에 추가"</strong>를 탭하세요</div>
+      </div>
+    </div>
+
+    <button class="install-close" onclick="closeInstallGuide()">확인했어요!</button>
+    <span class="install-skip" onclick="closeInstallGuide(true)">다시 보지 않기</span>
+  </div>
+</div>
 </body>
 </html>
