@@ -50,7 +50,7 @@ body::after {
 
 /* ─── 헤더 ─── */
 .site-header {
-  padding: 2rem 2rem 0;
+  padding: 4rem 2rem 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -411,51 +411,9 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
   100%{ width:100%; }
 }
 
-/* ─── 오프닝 ─── */
-#opening {
-  position:fixed; inset:0; z-index:9999;
-  background:#080400;
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  transition:opacity 1s ease;
-}
-#opening.hide { opacity:0; pointer-events:none; }
-.o-radio { margin-bottom:1.8rem; filter:drop-shadow(0 0 16px rgba(212,168,67,0.7)); animation:oGlow 1.5s ease-in-out infinite; }
-@keyframes oGlow { 0%,100%{filter:drop-shadow(0 0 8px rgba(212,168,67,0.4))} 50%{filter:drop-shadow(0 0 28px rgba(212,168,67,1))} }
-.o-title { font-family:'Nanum Myeongjo',serif; font-size:1.8rem; font-weight:800; color:#f5e0a0; letter-spacing:0.15em; margin-bottom:0.4rem; }
-.o-sub { font-size:0.78rem; color:#7a6040; letter-spacing:0.3em; text-transform:uppercase; }
-.o-bar { width:180px; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; margin-top:1.4rem; overflow:hidden; }
-.o-needle { height:100%; width:0; background:linear-gradient(90deg,#d4a843,#ffe090); border-radius:2px; animation:oTune 2.5s ease forwards; }
-@keyframes oTune { 0%{width:0} 25%{width:55%} 40%{width:30%} 65%{width:80%} 80%{width:60%} 100%{width:100%} }
-.o-scan { position:absolute; inset:0; pointer-events:none; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px); }
 </style>
 </head>
 <body>
-
-
-
-
-  <svg class="o-radio" width="110" height="82" viewBox="0 0 110 82" fill="none">
-    <rect x="4" y="22" width="102" height="56" rx="7" fill="#1a0e04" stroke="#d4a843" stroke-width="1.5"/>
-    <rect x="10" y="28" width="38" height="44" rx="3" fill="#0d0703" stroke="#7a5018" stroke-width="1"/>
-    <line x1="15" y1="34" x2="43" y2="34" stroke="#2a1a08" stroke-width="1"/>
-    <line x1="15" y1="40" x2="43" y2="40" stroke="#2a1a08" stroke-width="1"/>
-    <line x1="15" y1="46" x2="43" y2="46" stroke="#2a1a08" stroke-width="1"/>
-    <line x1="15" y1="52" x2="43" y2="52" stroke="#2a1a08" stroke-width="1"/>
-    <line x1="15" y1="58" x2="43" y2="58" stroke="#2a1a08" stroke-width="1"/>
-    <line x1="15" y1="64" x2="43" y2="64" stroke="#2a1a08" stroke-width="1"/>
-    <rect x="54" y="28" width="48" height="18" rx="3" fill="#081408" stroke="#7a5018" stroke-width="1"/>
-    <text x="78" y="40" text-anchor="middle" fill="#00ff88" font-size="7" font-family="monospace">88.7 FM</text>
-    <line x1="78" y1="28" x2="78" y2="46" stroke="#ff4400" stroke-width="1" opacity="0.8"/>
-    <circle cx="64" cy="60" r="8" fill="#0d0703" stroke="#d4a843" stroke-width="1.5"/>
-    <line x1="64" y1="54" x2="64" y2="58" stroke="#d4a843" stroke-width="1.5" stroke-linecap="round"/>
-    <circle cx="84" cy="60" r="8" fill="#0d0703" stroke="#d4a843" stroke-width="1.5"/>
-    <line x1="88" y1="57" x2="85" y2="60" stroke="#d4a843" stroke-width="1.5" stroke-linecap="round"/>
-    <circle cx="100" cy="60" r="3.5" fill="#ff3300"><animate attributeName="opacity" values="0.4;1;0.4" dur="1.2s" repeatCount="indefinite"/></circle>
-    <line x1="88" y1="22" x2="100" y2="4" stroke="#d4a843" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="100" cy="4" r="2" fill="#d4a843"/>
-  </svg>
-  <div class="o-title">라디오 사연함</div>
   <div class="o-sub">Radio Story</div>
   <div class="o-bar"><div class="o-needle"></div></div>
 </div>
@@ -465,7 +423,6 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
     <span class="dot"></span>
     <span>ON AIR</span>
   </div>
-  <div style="font-size:0.78rem;color:var(--muted);">📻 라디오 사연함</div>
 </header>
 
 <section class="hero">
