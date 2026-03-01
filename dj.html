@@ -532,6 +532,18 @@ body {
                 <div class="suno-prompt" id="sp-gift"></div>
                 <button class="suno-copy-btn" onclick="copySuno('sp-gift')">복사</button>
               </div>
+              <div id="lyrics-block" style="display:none; margin-top:0.8rem;
+                background:rgba(240,192,96,0.05); border:1px solid rgba(240,192,96,0.2);
+                border-radius:8px; padding:1rem;">
+                <div style="font-size:0.68rem; font-family:'DM Mono',monospace;
+                  color:var(--gold); letter-spacing:0.12em; text-transform:uppercase;
+                  margin-bottom:0.6rem;">🎤 작사 — 사연자를 위한 맞춤 가사</div>
+                <div id="sc-lyrics" style="font-size:0.88rem; line-height:2;
+                  color:var(--text); white-space:pre-wrap;"></div>
+                <button class="suno-copy-btn" style="margin-top:0.6rem;
+                  background:rgba(240,192,96,0.15); border-color:rgba(240,192,96,0.3);
+                  color:var(--gold);" onclick="copySuno('sc-lyrics')">가사 복사</button>
+              </div>
             </div>
           </div>
 
@@ -697,6 +709,7 @@ function selectStory(id){
   document.getElementById('studio-empty').style.display = 'none';
   document.getElementById('studio-content').style.display = 'block';
   document.getElementById('broadcast-script').style.display = 'none';
+  document.getElementById('lyrics-block').style.display = 'none';
 
   document.getElementById('sel-name').textContent = selectedStory.name + '님의 사연';
   document.getElementById('sel-text').textContent = selectedStory.text;
@@ -728,7 +741,7 @@ async function generateBroadcast(){
   fill.style.width = '0%';
 
   // 스크립트 섹션 초기화
-  const ids = ['sc-intro-music','sc-opening','sc-story','sc-reflection','sc-gift-music','sc-closing','sc-outro-music','sp-intro','sp-gift','sp-outro'];
+  const ids = ['sc-intro-music','sc-opening','sc-story','sc-reflection','sc-gift-music','sc-lyrics','sc-closing','sc-outro-music','sp-intro','sp-gift','sp-outro'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if(el){ el.textContent = ''; el.classList.add('loading'); }
@@ -872,6 +885,9 @@ ${story.text}
 [SUNO:gift]
 (사연 내용과 감정에 완전히 맞춤화된 Suno AI 작곡 프롬프트. 사연자의 감정/상황을 반영. 영어로 구체적으로 작성. 제목, 가사 방향, 장르, 악기 편성, 분위기, BPM 포함)
 [/SUNO]
+[LYRICS]
+(사연자를 위한 한국어 가사 전문. 형식: Verse1 / Pre-Chorus / Chorus / Verse2 / Bridge / Chorus / Outro 구조로 작성. 사연의 감정과 상황을 깊이 반영하여 감동적으로 작성. 각 파트를 [Verse 1], [Chorus] 등으로 명확히 구분)
+[/LYRICS]
 [/SECTION]
 
 [SECTION:closing]
@@ -902,6 +918,19 @@ function parseAndRender(text, isFinal=false){
     'closing': 'sc-closing',
     'outro_music': 'sc-outro-music',
   };
+
+  // 가사 파싱
+  const lyricsRe = /\[LYRICS\]([\s\S]*?)\[\/LYRICS\]/i;
+  const lyricsM = text.match(lyricsRe);
+  if(lyricsM){
+    const lyricsEl = document.getElementById('sc-lyrics');
+    const lyricsBlock = document.getElementById('lyrics-block');
+    if(lyricsEl){
+      lyricsEl.textContent = lyricsM[1].trim();
+      lyricsEl.classList.remove('loading');
+    }
+    if(lyricsBlock) lyricsBlock.style.display = 'block';
+  }
   const sunoMap = {
     'intro': 'sp-intro',
     'gift': 'sp-gift',
