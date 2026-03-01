@@ -435,8 +435,6 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
 
 
 
-<div id="opening">
-  <div class="o-scan"></div>
   <svg class="o-radio" width="110" height="82" viewBox="0 0 110 82" fill="none">
     <rect x="4" y="22" width="102" height="56" rx="7" fill="#1a0e04" stroke="#d4a843" stroke-width="1.5"/>
     <rect x="10" y="28" width="38" height="44" rx="3" fill="#0d0703" stroke="#7a5018" stroke-width="1"/>
@@ -582,54 +580,7 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
 
 <script>
 
-// ─── 오프닝 ─────────────────────────────────
-(function(){
-  // 소리 재생
-  function playSound(){
-    try {
-      const ctx = new (window.AudioContext||window.webkitAudioContext)();
-      function noise(s,d,v){
-        const n=Math.floor(ctx.sampleRate*d), b=ctx.createBuffer(1,n,ctx.sampleRate), arr=b.getChannelData(0);
-        for(let i=0;i<n;i++) arr[i]=(Math.random()*2-1);
-        const src=ctx.createBufferSource(); src.buffer=b;
-        const g=ctx.createGain(); g.gain.setValueAtTime(v,ctx.currentTime+s); g.gain.linearRampToValueAtTime(0,ctx.currentTime+s+d);
-        src.connect(g); g.connect(ctx.destination); src.start(ctx.currentTime+s);
-      }
-      function beep(f,s,d,v){
-        const o=ctx.createOscillator(), g=ctx.createGain();
-        o.type='sine'; o.frequency.setValueAtTime(f,ctx.currentTime+s);
-        o.frequency.linearRampToValueAtTime(f*1.6,ctx.currentTime+s+d*0.7);
-        g.gain.setValueAtTime(v,ctx.currentTime+s); g.gain.linearRampToValueAtTime(0,ctx.currentTime+s+d);
-        o.connect(g); g.connect(ctx.destination);
-        o.start(ctx.currentTime+s); o.stop(ctx.currentTime+s+d+0.05);
-      }
-      function hum(s,d){
-        const o=ctx.createOscillator(), g=ctx.createGain();
-        o.type='sawtooth'; o.frequency.value=60;
-        g.gain.setValueAtTime(0.1,ctx.currentTime+s); g.gain.linearRampToValueAtTime(0,ctx.currentTime+s+d);
-        o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime+s); o.stop(ctx.currentTime+s+d);
-      }
-      ctx.resume();
-      hum(0,0.7); noise(0,0.5,0.2); noise(0.6,0.3,0.14);
-      beep(280,0.9,0.3,0.2); noise(1.1,0.2,0.1);
-      beep(520,1.35,0.25,0.22); beep(950,1.6,0.4,0.25);
-      noise(1.6,0.2,0.1); beep(1500,2.0,0.5,0.2);
-    } catch(e){}
-  }
 
-  // 오프닝 종료
-  function endOpening(){
-    const el = document.getElementById('opening');
-    if(!el) return;
-    el.classList.add('hide');
-    setTimeout(()=>{ el.style.display='none'; }, 1000);
-  }
-
-  window.addEventListener('load', function(){
-    playSound();
-    setTimeout(endOpening, 2800);
-  });
-})();
 
 
 
@@ -659,7 +610,7 @@ let recognition=null;
 let recognizing=false;
 let sttSecs=0, sttTimer=null;
 
-// ─── 받아쓰기 (STT) ───────────────────────────
+
 function toggleSTT(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR){
@@ -709,13 +660,8 @@ async function checkSpelling(text){
 // 문장 끝 자동 띄어쓰기 보정
 function addSpacing(prev, next){
   if(!prev) return next;
-  // 이미 공백으로 끝나면 그대로
-  if(prev.endsWith(' ') || prev.endsWith('
-')) return prev + next;
-  // 문장 끝 부호면 줄바꿈
-  if(/[.!?。]$/.test(prev)) return prev + '
-' + next;
-  // 그 외엔 공백 추가
+  if(prev.endsWith(' ') || prev.endsWith('\n')) return prev + next;
+  if(/[.!?。]$/.test(prev)) return prev + '\n' + next;
   return prev + ' ' + next;
 }
 
