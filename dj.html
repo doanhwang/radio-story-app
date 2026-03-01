@@ -294,6 +294,42 @@ body {
 @keyframes spin { to { transform:rotate(360deg) } }
 
 /* 토스트 */
+.history-panel {
+  display:none; position:absolute; inset:0;
+  background:var(--surface); z-index:50;
+  overflow-y:auto; padding:2rem;
+}
+.history-panel.show { display:block; }
+.hist-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.hist-table th {
+  text-align:left; padding:0.6rem 0.8rem;
+  border-bottom:1px solid var(--border); color:var(--muted);
+  font-family:'DM Mono',monospace; font-size:0.7rem;
+  letter-spacing:0.08em; text-transform:uppercase; font-weight:400;
+}
+.hist-table td {
+  padding:0.75rem 0.8rem; border-bottom:1px solid var(--faint);
+  vertical-align:top;
+}
+.hist-table tr:hover td { background:var(--faint); }
+.hist-story-name { font-weight:600; color:var(--text); }
+.hist-dj { color:var(--muted); font-size:0.75rem; }
+.hist-cost { font-family:'DM Mono',monospace; color:var(--gold); font-weight:700; }
+.hist-won { color:var(--muted); font-size:0.72rem; }
+.hist-tokens { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--muted); }
+.hist-time { font-size:0.75rem; color:var(--muted); }
+.hist-summary {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;
+  margin-bottom:1.5rem;
+}
+.hist-stat {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:10px; padding:1rem 1.2rem;
+}
+.hist-stat-label { font-size:0.7rem; color:var(--muted); margin-bottom:0.3rem; font-family:'DM Mono',monospace; }
+.hist-stat-val { font-size:1.1rem; font-weight:700; font-family:'DM Mono',monospace; }
+.hist-empty { text-align:center; padding:4rem; color:var(--muted); font-size:0.9rem; }
+
 .toast {
   position:fixed; bottom:2rem; right:2rem;
   background:var(--card); border:1px solid var(--border);
@@ -351,6 +387,7 @@ body {
     </div>
     <div class="header-actions">
       <button class="btn btn-ghost" onclick="loadStories()">🔄 새로고침</button>
+      <button class="btn btn-ghost" style="border-color:rgba(240,192,96,0.4);color:var(--gold);" onclick="openHistory()">📋 제작 이력</button>
       <button class="btn btn-ghost" onclick="location.href='/admin'">← 관리자</button>
     </div>
   </header>
@@ -379,7 +416,36 @@ body {
     </div>
 
     <!-- ── 우: 스튜디오 ── -->
-    <div class="panel-right" id="studio-panel">
+    <div class="panel-right" id="studio-panel" style="position:relative;">
+
+      <!-- 이력 패널 -->
+      <div class="history-panel" id="history-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+          <h2 style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);">📋 방송 제작 이력</h2>
+          <button class="btn btn-ghost" onclick="closeHistory()">✕ 닫기</button>
+        </div>
+
+        <!-- 요약 통계 -->
+        <div class="hist-summary">
+          <div class="hist-stat">
+            <div class="hist-stat-label">총 제작 횟수</div>
+            <div class="hist-stat-val" id="hs-count" style="color:var(--cyan);">—</div>
+          </div>
+          <div class="hist-stat">
+            <div class="hist-stat-label">총 비용 (USD)</div>
+            <div class="hist-stat-val" id="hs-usd" style="color:var(--gold);">—</div>
+          </div>
+          <div class="hist-stat">
+            <div class="hist-stat-label">총 비용 (원화)</div>
+            <div class="hist-stat-val" id="hs-krw" style="color:var(--green);">—</div>
+          </div>
+        </div>
+
+        <!-- 이력 테이블 -->
+        <div id="history-table-wrap">
+          <div class="hist-empty">⏳ 불러오는 중...</div>
+        </div>
+      </div>
 
       <div class="studio-empty" id="studio-empty">
         <div class="big-icon">🎚️</div>
@@ -1032,6 +1098,77 @@ async function loadUsageCost(){
     console.error('비용 조회 실패:', e);
     document.getElementById('hc-this').textContent = 'err';
     document.getElementById('hc-total').textContent = 'err';
+  }
+}
+
+// ── 이력 ──────────────────────────────────────
+function openHistory(){
+  const panel = document.getElementById('history-panel');
+  panel.classList.add('show');
+  loadHistory();
+}
+function closeHistory(){
+  document.getElementById('history-panel').classList.remove('show');
+}
+
+async function loadHistory(){
+  const wrap = document.getElementById('history-table-wrap');
+  wrap.innerHTML = '<div class="hist-empty">⏳ 불러오는 중...</div>';
+
+  try {
+    const res = await fetch('/api/dj/usage');
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+
+    // 요약 통계
+    const totalCost = Number(d.total_cost) || 0;
+    document.getElementById('hs-count').textContent = (d.count || 0) + '회';
+    document.getElementById('hs-usd').textContent = '$' + totalCost.toFixed(4);
+    document.getElementById('hs-krw').textContent = '₩' + Math.round(totalCost * 1380).toLocaleString();
+
+    if(!d.records || !d.records.length){
+      wrap.innerHTML = '<div class="hist-empty">📭 아직 제작 이력이 없습니다</div>';
+      return;
+    }
+
+    const rows = d.records.map((r, i) => {
+      const cost = Number(r.total_cost_usd) || 0;
+      const won  = Math.round(cost * 1380);
+      const inT  = Number(r.input_tokens)  || 0;
+      const outT = Number(r.output_tokens) || 0;
+      const dt   = r.created_at
+        ? new Date(r.created_at).toLocaleString('ko-KR', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
+        : '—';
+      return `<tr>
+        <td style="color:var(--muted);font-family:'DM Mono',monospace;font-size:0.72rem;">${i+1}</td>
+        <td>
+          <div class="hist-story-name">${r.story_name || '—'}</div>
+          <div class="hist-dj">${r.dj_name || '—'} · ${r.model || '—'}</div>
+        </td>
+        <td>
+          <div class="hist-cost">$${cost.toFixed(5)}</div>
+          <div class="hist-won">₩${won.toLocaleString()}</div>
+        </td>
+        <td class="hist-tokens">${inT.toLocaleString()} / ${outT.toLocaleString()}</td>
+        <td class="hist-time">${dt}</td>
+      </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `<table class="hist-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>사연자 · DJ</th>
+          <th>비용</th>
+          <th>토큰 (in/out)</th>
+          <th>일시</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  } catch(e) {
+    wrap.innerHTML = '<div class="hist-empty">❗ 불러오기 실패: ' + e.message + '</div>';
   }
 }
 
