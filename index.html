@@ -370,14 +370,25 @@ audio { width: 100%; border-radius: 8px; margin-top: 1rem; }
     <div class="card">
       <div class="card-title">🎙️ 음성 사연</div>
       <div class="voice-inner">
-        <p class="voice-hint">직접 목소리로 사연을 전하고 싶다면<br>아래 버튼을 눌러 녹음해 주세요</p>
-        <div class="voice-controls">
-          <button class="btn btn-rust" id="rec-btn" onclick="toggleRec()">
-            🎙️ <span id="rec-label">녹음 시작</span>
-          </button>
-          <span class="rec-timer" id="rec-timer">00:00</span>
+        <p class="voice-hint">🎙️ 음성 녹음 또는 📝 받아쓰기 중 선택하세요</p>
+        <div style="display:flex;flex-direction:column;gap:0.8rem;width:100%;">
+          <div style="background:rgba(192,85,42,0.05);border:1px solid rgba(192,85,42,0.2);border-radius:10px;padding:1rem;">
+            <div style="font-size:0.78rem;color:var(--rust);font-weight:700;margin-bottom:0.6rem;">🎙️ 음성 녹음 (파일로 저장)</div>
+            <div class="voice-controls">
+              <button class="btn btn-rust" id="rec-btn" onclick="toggleRec()">🎙️ <span id="rec-label">녹음 시작</span></button>
+              <span class="rec-timer" id="rec-timer">00:00</span>
+            </div>
+            <div id="audio-preview"></div>
+          </div>
+          <div style="background:rgba(28,20,16,0.03);border:1px solid var(--border);border-radius:10px;padding:1rem;">
+            <div style="font-size:0.78rem;color:var(--muted);font-weight:700;margin-bottom:0.6rem;">📝 받아쓰기 (텍스트로 변환)</div>
+            <div class="voice-controls">
+              <button class="btn btn-outline" id="stt-btn" onclick="toggleSTT()">🎤 <span id="stt-label">받아쓰기 시작</span></button>
+              <span class="rec-timer" id="stt-timer" style="color:var(--muted);display:none;">00:00</span>
+            </div>
+            <p id="stt-status" style="font-size:0.78rem;color:var(--muted);margin-top:0.5rem;text-align:center;min-height:1.2rem;"></p>
+          </div>
         </div>
-        <div id="audio-preview"></div>
       </div>
       <div class="upload-zone" onclick="document.getElementById('vfile').click()">
         <input type="file" id="vfile" accept="audio/*" onchange="handleFile(this)">
@@ -430,40 +441,79 @@ function toggleEmo(el){
 
 let recognition=null;
 let recognizing=false;
-let accumulatedText='';
+let sttSecs=0, sttTimer=null;
 
-function startSpeechRecognition(){
+// ─── 받아쓰기 (STT) ───────────────────────────
+function toggleSTT(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR) return;
+  if(!SR){
+    document.getElementById('stt-status').textContent='❗ 이 브라우저는 받아쓰기를 지원하지 않아요';
+    return;
+  }
+  if(!recognizing){
+    // 받아쓰기 시작
+    recognizing = true;
+    document.getElementById('stt-btn').style.background='var(--rust)';
+    document.getElementById('stt-btn').style.color='#fff';
+    document.getElementById('stt-btn').style.borderColor='var(--rust)';
+    document.getElementById('stt-label').textContent='받아쓰기 중지';
+    document.getElementById('stt-timer').style.display='inline';
+    document.getElementById('stt-status').textContent='🔴 듣고 있어요...';
+    sttSecs=0;
+    sttTimer=setInterval(()=>{
+      sttSecs++;
+      document.getElementById('stt-timer').textContent=
+        String(Math.floor(sttSecs/60)).padStart(2,'0')+':'+String(sttSecs%60).padStart(2,'0');
+    },1000);
+    startSTT();
+  } else {
+    // 받아쓰기 중지
+    recognizing = false;
+    if(recognition){ try{recognition.stop();}catch(e){} recognition=null; }
+    clearInterval(sttTimer);
+    document.getElementById('stt-btn').style.background='';
+    document.getElementById('stt-btn').style.color='';
+    document.getElementById('stt-btn').style.borderColor='';
+    document.getElementById('stt-label').textContent='받아쓰기 시작';
+    document.getElementById('stt-timer').style.display='none';
+    document.getElementById('stt-status').textContent='✅ 받아쓰기 완료';
+  }
+}
 
+function startSTT(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
   recognition.lang = 'ko-KR';
-  recognition.continuous = false;      // 안드로이드 호환
+  recognition.continuous = false;
   recognition.interimResults = true;
-  recognizing = true;
+  let base = document.getElementById('f-text').value;
 
   recognition.onresult = (e) => {
     let interim = '';
     for(let i=e.resultIndex; i<e.results.length; i++){
       if(e.results[i].isFinal){
-        accumulatedText += e.results[i][0].transcript;
+        base += e.results[i][0].transcript;
       } else {
         interim = e.results[i][0].transcript;
       }
     }
-    document.getElementById('f-text').value = accumulatedText + interim;
+    document.getElementById('f-text').value = base + interim;
   };
 
   recognition.onend = () => {
-    // 녹음 중이면 자동으로 재시작 (끊어서 반복)
-    if(recActive && recognizing){
-      try{ recognition.start(); }catch(e){}
+    if(recognizing){
+      // 자동 재시작
+      base = document.getElementById('f-text').value;
+      try{ recognition.start(); }catch(e){ startSTT(); }
     }
   };
 
   recognition.onerror = (e) => {
-    if(e.error === 'no-speech' && recActive && recognizing){
-      try{ recognition.start(); }catch(err){}
+    if(e.error==='no-speech' && recognizing){
+      try{ recognition.start(); }catch(err){ startSTT(); }
+    } else if(e.error==='not-allowed'){
+      document.getElementById('stt-status').textContent='❗ 마이크 권한이 필요합니다';
+      recognizing=false;
     }
   };
 
@@ -492,19 +542,12 @@ async function toggleRec(){
           String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
       },1000);
 
-      // 받아쓰기 시작
-      accumulatedText = document.getElementById('f-text').value;
-      startSpeechRecognition();
-
     }catch(e){alert('마이크 접근 권한이 필요합니다.');}
   }else{
     recorder.stop(); recActive=false; clearInterval(timerInt);
     document.getElementById('rec-btn').classList.remove('recording');
     document.getElementById('rec-label').textContent='녹음 시작';
     document.getElementById('rec-timer').style.display='none';
-    // 받아쓰기 중지
-    recognizing=false;
-    if(recognition){ try{recognition.stop();}catch(e){} recognition=null; }
   }
 }
 
