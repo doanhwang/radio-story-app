@@ -721,28 +721,49 @@ async function generateBroadcast(){
       body: JSON.stringify({ prompt })
     });
 
+    // 서버 오류 체크
+    if(!response.ok){
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || 'HTTP ' + response.status);
+    }
+
     let fullText = '';
+    let buffer = '';
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
     while(true){
       const { done, value } = await reader.read();
       if(done) break;
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      // 마지막 불완전한 줄은 버퍼에 보존
+      buffer = lines.pop();
+
       for(const line of lines){
-        if(line.startsWith('data: ')){
-          const data = line.slice(6);
-          if(data === '[DONE]') break;
-          try {
-            const j = JSON.parse(data);
-            if(j.type === 'content_block_delta' && j.delta?.text){
-              fullText += j.delta.text;
-              parseAndRender(fullText);
-            }
-          } catch(e){}
+        const trimmed = line.trim();
+        if(!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+        if(data === '[DONE]') continue;
+        try {
+          const j = JSON.parse(data);
+          // 에러 응답 처리
+          if(j.type === 'error'){
+            throw new Error(j.error?.message || 'API 오류');
+          }
+          if(j.type === 'content_block_delta' && j.delta?.type === 'text_delta'){
+            fullText += j.delta.text;
+            parseAndRender(fullText);
+          }
+        } catch(parseErr){
+          // JSON 파싱 실패는 무시 (불완전한 청크)
         }
       }
+    }
+
+    if(!fullText){
+      throw new Error('AI 응답이 비어 있습니다. API 키와 크레딧을 확인하세요.');
     }
 
     parseAndRender(fullText, true);
@@ -750,7 +771,9 @@ async function generateBroadcast(){
     setTimeout(() => { bar.style.display = 'none'; fill.style.width = '0%'; }, 800);
 
   } catch(e) {
-    showToast('❗ AI 연결 실패: ' + e.message);
+    showToast('❗ ' + e.message);
+    console.error('DJ 생성 오류:', e);
+    bar.style.display = 'none';
   }
 
   btn.disabled = false;
