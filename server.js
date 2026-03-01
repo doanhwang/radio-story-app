@@ -90,7 +90,7 @@ app.post('/api/dj/generate', async (req, res) => {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다. Railway Variables를 확인하세요.' });
   }
 
-  const { prompt, story_id, story_name, dj_name } = req.body;
+  const { prompt, story_id, story_name, story_text, dj_name, dj_tone, music_genre } = req.body;
   if (!prompt) return res.status(400).json({ error: 'prompt가 없습니다.' });
 
   const body = JSON.stringify({
@@ -133,6 +133,7 @@ app.post('/api/dj/generate', async (req, res) => {
     res.flushHeaders();
 
     let rawBuffer = '';
+    let fullText = '';
     let inputTokens = 0;
     let outputTokens = 0;
 
@@ -153,6 +154,9 @@ app.post('/api/dj/generate', async (req, res) => {
           if (j.type === 'message_delta' && j.usage) {
             outputTokens = j.usage.output_tokens || 0;
           }
+          if (j.type === 'content_block_delta' && j.delta?.type === 'text_delta') {
+            fullText += j.delta.text || '';
+          }
         } catch(e) {}
       }
     });
@@ -170,12 +174,16 @@ app.post('/api/dj/generate', async (req, res) => {
           model: MODEL,
           story_id: story_id || null,
           story_name: story_name || '알 수 없음',
+          story_text: story_text || '',
           dj_name: dj_name || 'DJ 은하',
+          dj_tone: dj_tone || '',
+          music_genre: music_genre || '',
           input_tokens: inputTokens,
           output_tokens: outputTokens,
           input_cost_usd: inputCost,
           output_cost_usd: outputCost,
           total_cost_usd: totalCost,
+          full_text: fullText,
         };
 
         // 1) 메모리에 항상 저장 (즉시, 신뢰성 높음)
