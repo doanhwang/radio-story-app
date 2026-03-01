@@ -23,6 +23,13 @@ app.use(express.json());
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/test', (req, res) => res.sendFile(path.join(__dirname, 'test.html')));
+
+// ─── 타입별 사연 입력 앱 (방법 B: 단일 HTML + URL 파라미터) ───
+// /story?type=self    → 장애인 당사자
+// /story?type=parent  → 장애인 자녀 부모
+// /story?type=helper  → 장애인 활동지원사
+// /story?type=care    → 치매 가족 돌봄자
+app.get('/story', (req, res) => res.sendFile(path.join(__dirname, 'story.html')));
 app.get('/manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'manifest.json')));
 app.get('/service-worker.js', (req, res) => res.sendFile(path.join(__dirname, 'service-worker.js')));
 app.get('/icon-192.png', (req, res) => res.sendFile(path.join(__dirname, 'icon-192.png')));
@@ -59,7 +66,7 @@ async function uploadToStorage(filePath, fileName) {
 // ─── 사연 제출 ─────────────────────────────────
 app.post('/api/stories', upload.single('voice'), async (req, res) => {
   try {
-    const { name, contact, text, category, emotions } = req.body;
+    const { name, contact, text, category, emotions, audience_type } = req.body;
     if (!text && !req.file) return res.status(400).json({ error: '텍스트 또는 음성을 입력해주세요.' });
 
     let voiceUrl = null;
@@ -80,6 +87,7 @@ app.post('/api/stories', upload.single('voice'), async (req, res) => {
       text: text || '',
       category: category || '',
       emotions: emotions ? JSON.parse(emotions) : [],
+      audience_type: audience_type || 'self',
       voice_file: voiceFile,
       voice_url: voiceUrl,
       has_voice: !!req.file,

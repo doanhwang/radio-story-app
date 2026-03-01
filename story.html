@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" id="meta-app-title" content="사연함">
+<meta name="theme-color" id="meta-theme-color" content="#8b65cc">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title id="page-title">사연 보내기</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ─── CSS 변수 (JS에서 덮어씀) ─── */
+:root {
+  --c1: #8b65cc;      /* 주색 */
+  --c1-light: #b08ee0;
+  --c1-pale: #f8f4ff;
+  --c1-rgb: 139,101,204;
+  --ink: #2d2040;
+  --muted: #8a7fa8;
+  --border: #e2d8f5;
+  --card: rgba(255,255,255,0.90);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Noto Sans KR',sans-serif;
+  background:#ffffff;
+  color:var(--ink);
+  min-height:100vh;
+  position:relative;
+}
+
+/* 배경 레이어 */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 5%, rgba(var(--c1-rgb),0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 90%, rgba(var(--c1-rgb),0.05) 0%, transparent 50%);
+}
+body::after {
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:rgba(255,255,255,0.12);
+}
+
+.site-header,.hero,.form-wrap,.toast{position:relative;z-index:1;}
+
+/* ─── 헤더 ─── */
+.site-header{
+  padding:3.5rem 2rem 0;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.radio-badge{
+  display:flex; align-items:center; gap:0.6rem;
+  font-size:0.78rem; color:var(--muted);
+  letter-spacing:0.12em; text-transform:uppercase;
+}
+.dot{
+  width:8px; height:8px; background:var(--c1);
+  border-radius:50%; animation:pulse 2s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
+
+/* 채널 뱃지 */
+.channel-badge{
+  font-size:0.72rem; font-weight:600; letter-spacing:0.08em;
+  padding:0.2rem 0.7rem; border-radius:20px;
+  background:rgba(var(--c1-rgb),0.1); color:var(--c1);
+  border:1px solid rgba(var(--c1-rgb),0.2);
+}
+
+/* ─── 히어로 ─── */
+.hero{text-align:center;padding:3rem 2rem 1.8rem;position:relative;}
+.hero::before{
+  content:'♪'; position:absolute; top:2rem; left:8%;
+  font-size:4rem; color:rgba(var(--c1-rgb),0.06);
+  animation:float 6s ease-in-out infinite;
+}
+.hero::after{
+  content:'♩'; position:absolute; top:2.5rem; right:10%;
+  font-size:3rem; color:rgba(var(--c1-rgb),0.06);
+  animation:float 8s ease-in-out infinite reverse;
+}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+
+.hero-label{
+  font-size:0.74rem; letter-spacing:0.22em; text-transform:uppercase;
+  color:var(--c1); margin-bottom:0.9rem; font-weight:600;
+}
+.hero h1{
+  font-family:'Nanum Myeongjo',serif;
+  font-size:clamp(1.85rem,5.5vw,3rem);
+  font-weight:800; color:var(--ink); line-height:1.35;
+  margin-bottom:0.9rem;
+}
+.hero h1 em{font-style:normal; color:var(--c1);}
+.hero p{
+  font-size:0.95rem; color:var(--muted); line-height:1.85;
+  max-width:400px; margin:0 auto;
+}
+
+/* ─── 폼 ─── */
+.form-wrap{max-width:620px;margin:0 auto;padding:0 1.5rem 4rem;}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:20px; padding:2rem;
+  margin-bottom:1rem;
+  box-shadow:0 2px 20px rgba(var(--c1-rgb),0.07);
+  transition:box-shadow 0.3s;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.card:hover{box-shadow:0 4px 28px rgba(var(--c1-rgb),0.13);}
+
+.card-title{
+  font-family:'Nanum Myeongjo',serif;
+  font-size:1rem; font-weight:700; color:var(--c1);
+  margin-bottom:1.2rem;
+  display:flex; align-items:center; gap:0.5rem;
+}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;}
+.field{margin-bottom:0.9rem;}
+.field:last-child{margin-bottom:0;}
+.field label{
+  display:block; font-size:0.8rem; color:var(--muted);
+  margin-bottom:0.35rem; font-weight:500;
+}
+input[type="text"],textarea{
+  width:100%; background:#fff;
+  border:1.5px solid var(--border);
+  border-radius:10px; padding:0.75rem 1rem;
+  color:var(--ink); font-family:'Noto Sans KR',sans-serif;
+  font-size:0.92rem; outline:none;
+  transition:border-color 0.25s,box-shadow 0.25s;
+}
+input[type="text"]:focus,textarea:focus{
+  border-color:var(--c1);
+  box-shadow:0 0 0 3px rgba(var(--c1-rgb),0.1);
+}
+textarea{min-height:180px;resize:vertical;line-height:1.75;}
+
+/* ─── 태그 ─── */
+.tag-grid{display:flex;flex-wrap:wrap;gap:0.45rem;}
+.tag{
+  padding:0.35rem 0.85rem; border-radius:20px;
+  border:1.5px solid var(--border); background:#fff;
+  color:var(--muted); font-size:0.82rem; cursor:pointer;
+  transition:all 0.2s; user-select:none;
+}
+.tag:hover{border-color:var(--c1-light);color:var(--c1);}
+.tag.active{background:var(--c1);border-color:var(--c1);color:#fff;}
+
+/* ─── 음성 섹션 ─── */
+.voice-inner{
+  background:#fff; border:1.5px dashed var(--border);
+  border-radius:12px; padding:1.5rem; text-align:center;
+}
+.voice-hint{font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.6;}
+.voice-controls{
+  display:flex;align-items:center;justify-content:center;
+  gap:0.7rem;flex-wrap:wrap;
+}
+.btn{
+  display:inline-flex;align-items:center;gap:0.4rem;
+  padding:0.65rem 1.4rem;border-radius:10px;
+  border:1.5px solid transparent;
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:0.88rem;cursor:pointer;transition:all 0.2s;font-weight:500;
+}
+.btn-main{background:var(--c1);color:#fff;}
+.btn-main:hover{filter:brightness(0.9);transform:translateY(-1px);}
+.btn-main.recording{animation:recPulse 1s infinite;}
+@keyframes recPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(var(--c1-rgb),0.5)}
+  50%{box-shadow:0 0 0 10px rgba(var(--c1-rgb),0)}
+}
+.btn-outline{background:#fff;border-color:var(--border);color:var(--muted);}
+.btn-outline:hover{border-color:var(--c1-light);color:var(--c1);}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none!important;}
+.rec-timer{font-size:0.9rem;font-weight:700;color:var(--c1);display:none;min-width:48px;}
+audio{width:100%;border-radius:8px;margin-top:1rem;}
+
+.upload-zone{
+  margin-top:0.8rem; border:1.5px dashed var(--border);
+  border-radius:10px; padding:1rem; text-align:center;
+  cursor:pointer; transition:all 0.2s;
+}
+.upload-zone:hover{border-color:var(--c1-light);background:rgba(var(--c1-rgb),0.02);}
+.upload-zone input{display:none;}
+.upload-zone p{font-size:0.82rem;color:var(--muted);}
+.fname{color:var(--c1);margin-top:0.3rem;font-size:0.82rem;}
+
+/* ─── 제출 버튼 ─── */
+.submit-btn{
+  width:100%; padding:1.1rem;
+  background:var(--c1); color:#fff; border:none;
+  border-radius:14px; font-family:'Nanum Myeongjo',serif;
+  font-size:1.1rem; font-weight:700; cursor:pointer;
+  transition:all 0.3s; margin-top:0.5rem;
+  display:flex;align-items:center;justify-content:center;
+  gap:0.5rem; letter-spacing:0.05em;
+}
+.submit-btn:hover{
+  filter:brightness(0.9);transform:translateY(-2px);
+  box-shadow:0 8px 24px rgba(var(--c1-rgb),0.32);
+}
+.submit-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* ─── 성공 화면 ─── */
+.success-screen{
+  display:none;text-align:center;
+  padding:5rem 2rem;max-width:480px;margin:0 auto;
+}
+.success-icon{font-size:4rem;margin-bottom:1.5rem;}
+.success-screen h2{
+  font-family:'Nanum Myeongjo',serif;font-size:2rem;
+  font-weight:800;color:var(--ink);margin-bottom:1rem;
+}
+.success-screen p{
+  font-size:1rem;color:var(--muted);line-height:1.9;
+}
+
+/* ─── 토스트 ─── */
+.toast{
+  position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);
+  background:rgba(30,20,50,0.88);color:#fff;
+  padding:0.8rem 1.5rem;border-radius:50px;
+  font-size:0.88rem;opacity:0;transition:all 0.3s;pointer-events:none;z-index:9999;
+  white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* 스피너 */
+.spinner{
+  width:16px;height:16px;
+  border:2px solid rgba(255,255,255,0.3);
+  border-top-color:#fff;border-radius:50%;
+  animation:spin 0.7s linear infinite;display:inline-block;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── 설치 팝업 ─── */
+#install-guide{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(0,0,0,0.5);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.3s;
+}
+#install-guide.show{opacity:1;pointer-events:auto;}
+.install-card{
+  background:#fff;border-radius:24px 24px 0 0;
+  padding:2rem 1.5rem 2.5rem;width:100%;max-width:480px;
+  transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+#install-guide.show .install-card{transform:translateY(0);}
+.install-card h3{font-family:'Nanum Myeongjo',serif;font-size:1.2rem;font-weight:800;color:var(--ink);margin-bottom:0.4rem;}
+.install-card .sub{font-size:0.82rem;color:var(--muted);text-align:center;margin-bottom:1.5rem;}
+.install-steps{display:flex;flex-direction:column;gap:0.9rem;margin-bottom:1.5rem;}
+.install-step{
+  display:flex;align-items:center;gap:0.9rem;
+  background:var(--c1-pale);border-radius:12px;padding:0.8rem 1rem;
+}
+.step-num{
+  width:28px;height:28px;min-width:28px;
+  background:var(--c1);color:#fff;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.78rem;font-weight:700;
+}
+.step-text{font-size:0.85rem;color:var(--ink);line-height:1.4;}
+.step-text strong{color:var(--c1);}
+.install-tabs{display:flex;gap:0.5rem;margin-bottom:1.2rem;}
+.install-tab{
+  flex:1;padding:0.5rem;border:2px solid var(--border);border-radius:10px;
+  background:#fff;color:var(--muted);font-size:0.8rem;font-weight:600;
+  cursor:pointer;transition:all 0.2s;
+}
+.install-tab.active{border-color:var(--c1);background:rgba(var(--c1-rgb),0.07);color:var(--c1);}
+.install-close{
+  width:100%;padding:0.9rem;background:var(--c1);color:#fff;
+  border:none;border-radius:50px;font-size:0.95rem;font-weight:700;cursor:pointer;
+}
+.install-close:hover{filter:brightness(0.9);}
+.install-skip{
+  display:block;text-align:center;margin-top:0.8rem;
+  font-size:0.78rem;color:var(--muted);cursor:pointer;text-decoration:underline;
+}
+
+/* 반응형 */
+@media(max-width:480px){
+  .row2{grid-template-columns:1fr;}
+  .hero h1{font-size:1.75rem;}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="radio-badge">
+    <span class="dot"></span>
+    <span>ON AIR</span>
+  </div>
+  <div class="channel-badge" id="channel-badge"></div>
+</header>
+
+<section class="hero">
+  <p class="hero-label" id="hero-label">Radio Story</p>
+  <h1 id="hero-title">당신의 이야기를<br><em id="hero-em">들려주세요</em></h1>
+  <p id="hero-desc">소중한 사연을 텍스트나 음성으로 보내주세요.<br>방송에서 여러분의 목소리를 전하겠습니다.</p>
+</section>
+
+<div class="form-wrap">
+  <div id="form-body">
+
+    <div class="card">
+      <div class="card-title">👤 보내는 분</div>
+      <div class="row2">
+        <div class="field">
+          <label id="label-name">이름 또는 닉네임</label>
+          <input type="text" id="f-name" placeholder="익명도 괜찮아요">
+        </div>
+        <div class="field">
+          <label>연락처 (선택)</label>
+          <input type="text" id="f-contact" placeholder="이메일 또는 전화번호">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" id="tag-card-title">🏷️ 사연 분류</div>
+      <div class="field">
+        <label>카테고리</label>
+        <div class="tag-grid" id="cat-tags"></div>
+      </div>
+      <div class="field" style="margin-top:1rem;">
+        <label>지금 마음 (복수 선택)</label>
+        <div class="tag-grid" id="emo-tags"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">✍️ <span id="text-card-title">텍스트 사연</span></div>
+      <textarea id="f-text" spellcheck="true" lang="ko" id="f-text-area"></textarea>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎙️ 음성 사연</div>
+      <div class="voice-inner">
+        <p class="voice-hint">🎙️ 음성 녹음 또는 📝 받아쓰기 중 선택하세요</p>
+        <div style="display:flex;flex-direction:column;gap:0.8rem;width:100%;">
+          <div style="background:rgba(var(--c1-rgb),0.04);border:1px solid rgba(var(--c1-rgb),0.18);border-radius:10px;padding:1rem;">
+            <div style="font-size:0.78rem;color:var(--c1);font-weight:700;margin-bottom:0.6rem;">🎙️ 음성 녹음 (파일로 저장)</div>
+            <div class="voice-controls">
+              <button class="btn btn-main" id="rec-btn" onclick="toggleRec()">🎙️ <span id="rec-label">녹음 시작</span></button>
+              <span class="rec-timer" id="rec-timer">00:00</span>
+            </div>
+            <div id="audio-preview"></div>
+          </div>
+          <div style="background:rgba(0,0,0,0.02);border:1px solid var(--border);border-radius:10px;padding:1rem;">
+            <div style="font-size:0.78rem;color:var(--muted);font-weight:700;margin-bottom:0.6rem;">📝 받아쓰기 (텍스트로 변환)</div>
+            <div class="voice-controls">
+              <button class="btn btn-outline" id="stt-btn" onclick="toggleSTT()">🎤 <span id="stt-label">받아쓰기 시작</span></button>
+              <span class="rec-timer" id="stt-timer" style="color:var(--muted);display:none;">00:00</span>
+            </div>
+            <p id="stt-status" style="font-size:0.78rem;color:var(--muted);margin-top:0.5rem;text-align:center;min-height:1.2rem;"></p>
+          </div>
+        </div>
+      </div>
+      <div class="upload-zone" onclick="document.getElementById('vfile').click()">
+        <input type="file" id="vfile" accept="audio/*" onchange="handleFile(this)">
+        <p>📎 음성 파일 첨부 (.mp3 .wav .m4a .ogg)</p>
+        <p class="fname" id="fname"></p>
+      </div>
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="submitStory()">
+      <span id="submit-label">사연 전송하기</span> ✉️
+    </button>
+
+  </div>
+
+  <div class="success-screen" id="success-screen">
+    <div class="success-icon" id="success-icon">📻</div>
+    <h2 id="success-title">사연이 도착했습니다</h2>
+    <p id="success-desc">소중한 이야기를 나눠주셔서 감사해요.<br>방송에서 소개될 수 있으니 기대해 주세요 🎶</p>
+    <br>
+    <button class="btn btn-outline" style="margin:0 auto;" onclick="resetForm()">
+      새 사연 보내기
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     타입별 설정 (JSON)
+     각 타입은 완전히 독립적인 경험을 제공합니다.
+═══════════════════════════════════════════════════ -->
+<script>
+const TYPES = {
+
+  /* ── 장애인 당사자 ── */
+  self: {
+    appName: '나의 이야기',
+    channel: '장애인 사연 채널',
+    themeColor: '#6e5abf',
+    c1: '#6e5abf',
+    c1Light: '#9b8ad6',
+    c1Pale: '#f2eefc',
+    c1Rgb: '110,90,191',
+    ink: '#2a1e50',
+    muted: '#7a6fa8',
+    border: '#ddd6f5',
+
+    heroLabel: 'My Story',
+    heroTitle: '내 이야기를',
+    heroEm: '들어주세요',
+    heroDesc: '살아가면서 겪은 나만의 이야기를\n텍스트나 음성으로 보내주세요.',
+
+    channel_badge: '나의 이야기',
+    name_label: '이름 또는 닉네임',
+    tag_card_title: '🏷️ 이야기 분류',
+    text_placeholder: '살면서 겪은 이야기, 하고 싶은 말, 소망... 뭐든 괜찮아요.\n\n어떤 이야기든 소중히 전하겠습니다.',
+    submit_label: '이야기 전송하기',
+    success_icon: '📻',
+    success_title: '이야기가 도착했어요',
+    success_desc: '용기 내어 보내주셔서 감사해요.\n여러분의 이야기를 방송에서 소중히 전할게요 🎶',
+
+    categories: [
+      '💪 나의 일상', '🌈 꿈과 바람', '🤝 사람과 관계',
+      '🏥 몸과 건강', '💼 일과 활동', '🎵 기쁨과 즐거움',
+      '😔 힘들었던 날', '✨ 기타'
+    ],
+    emotions: [
+      '😊 기쁨', '😢 슬픔', '💪 의지', '😰 불안',
+      '🌸 감사', '💫 희망', '😔 외로움', '🎉 설렘',
+      '🙏 바람', '😤 억울함'
+    ]
+  },
+
+  /* ── 장애인 자녀를 둔 부모 ── */
+  parent: {
+    appName: '우리 아이 이야기',
+    channel: '부모 사연 채널',
+    themeColor: '#2e8b6e',
+    c1: '#2e8b6e',
+    c1Light: '#4db896',
+    c1Pale: '#edf9f5',
+    c1Rgb: '46,139,110',
+    ink: '#1a3a2e',
+    muted: '#5a8878',
+    border: '#c8e8df',
+
+    heroLabel: 'Our Story',
+    heroTitle: '우리 아이 이야기를',
+    heroEm: '나눠주세요',
+    heroDesc: '아이와 함께하는 하루하루,\n그 소중한 순간들을 들려주세요.',
+
+    channel_badge: '우리 아이 이야기',
+    name_label: '이름 또는 닉네임',
+    tag_card_title: '🏷️ 이야기 분류',
+    text_placeholder: '우리 아이와 있었던 이야기, 기쁜 날도 힘든 날도 모두 소중해요.\n\n마음껏 써주세요. 함께 읽겠습니다.',
+    submit_label: '이야기 보내기',
+    success_icon: '🌿',
+    success_title: '이야기가 전해졌어요',
+    success_desc: '소중한 이야기를 나눠주셔서 감사해요.\n방송을 통해 많은 분들께 전할게요 🌱',
+
+    categories: [
+      '🌟 아이의 성장', '💕 함께한 순간', '🏫 교육과 치료',
+      '😅 힘들었던 날', '🎉 작은 기적', '🤲 도움과 지원',
+      '🌈 꿈과 바람', '✨ 기타'
+    ],
+    emotions: [
+      '🥰 뿌듯함', '😢 눈물', '💪 힘냄', '😰 걱정',
+      '🌸 감사', '💫 희망', '😔 지침', '🎉 기쁨',
+      '🙏 바람', '❤️ 사랑'
+    ]
+  },
+
+  /* ── 장애인 활동지원사 ── */
+  helper: {
+    appName: '현장의 목소리',
+    channel: '활동지원사 채널',
+    themeColor: '#1d6fa8',
+    c1: '#1d6fa8',
+    c1Light: '#4a96cc',
+    c1Pale: '#eaf4fb',
+    c1Rgb: '29,111,168',
+    ink: '#0f2d42',
+    muted: '#4a7a99',
+    border: '#c2dff0',
+
+    heroLabel: 'Field Voice',
+    heroTitle: '현장의 목소리를',
+    heroEm: '들려주세요',
+    heroDesc: '매일의 활동 현장에서\n느끼고 경험한 이야기를 들려주세요.',
+
+    channel_badge: '현장의 목소리',
+    name_label: '이름 또는 닉네임',
+    tag_card_title: '🏷️ 이야기 분류',
+    text_placeholder: '활동 현장에서 있었던 일, 감동적인 순간, 힘들었던 경험...\n\n여러분의 목소리가 소중합니다.',
+    submit_label: '목소리 전송하기',
+    success_icon: '🎙️',
+    success_title: '목소리가 전해졌습니다',
+    success_desc: '현장의 소중한 이야기를 나눠주셔서 감사해요.\n방송을 통해 많은 분들께 전하겠습니다 📡',
+
+    categories: [
+      '🤝 활동 에피소드', '💡 느낀 점', '😊 감동 순간',
+      '😓 어려운 순간', '💼 업무 이야기', '🌿 성장과 보람',
+      '🗣️ 하고 싶은 말', '✨ 기타'
+    ],
+    emotions: [
+      '😊 보람', '😢 안타까움', '💪 의지', '😰 걱정',
+      '🌸 감사', '💫 보람참', '😔 지침', '🎉 뿌듯함',
+      '🙏 바람', '😤 답답함'
+    ]
+  },
+
+  /* ── 치매 부모를 모시는 자녀 ── */
+  care: {
+    appName: '곁에 있습니다',
+    channel: '가족 돌봄 채널',
+    themeColor: '#c47c2b',
+    c1: '#c47c2b',
+    c1Light: '#e0a055',
+    c1Pale: '#fdf5ea',
+    c1Rgb: '196,124,43',
+    ink: '#3d2a10',
+    muted: '#9a7a50',
+    border: '#f0dfc0',
+
+    heroLabel: 'Care Story',
+    heroTitle: '곁에서 함께하는',
+    heroEm: '이야기',
+    heroDesc: '부모님을 돌보며 겪는 소중한 순간들,\n그 마음을 나눠주세요.',
+
+    channel_badge: '가족 돌봄 이야기',
+    name_label: '이름 또는 닉네임',
+    tag_card_title: '🏷️ 이야기 분류',
+    text_placeholder: '부모님과 함께한 하루, 기억에 남는 말 한마디, 힘들었지만 의미 있었던 순간...\n\n마음속 이야기를 전해주세요.',
+    submit_label: '마음 전하기',
+    success_icon: '🌻',
+    success_title: '마음이 전해졌어요',
+    success_desc: '소중한 이야기를 나눠주셔서 감사해요.\n여러분의 마음을 방송에서 소중히 전하겠습니다 🧡',
+
+    categories: [
+      '💛 함께한 하루', '🌙 기억 속의 순간', '💬 부모님의 한마디',
+      '😔 힘들었던 날', '🌸 작은 행복', '🏥 돌봄 이야기',
+      '🙏 감사와 그리움', '✨ 기타'
+    ],
+    emotions: [
+      '❤️ 사랑', '😢 슬픔', '💪 힘냄', '😰 지침',
+      '🌸 감사', '💫 희망', '😔 외로움', '🥰 뭉클함',
+      '🙏 그리움', '😊 따뜻함'
+    ]
+  }
+};
+</script>
+
+<!-- ═══════════════════════════════════════════════════
+     공통 기능 로직
+═══════════════════════════════════════════════════ -->
+<script>
+/* ─── URL 파라미터에서 타입 추출 ─── */
+function getType(){
+  const params = new URLSearchParams(window.location.search);
+  const t = (params.get('type') || '').toLowerCase();
+  return TYPES[t] ? t : 'self'; // 없으면 기본값
+}
+
+/* ─── 테마 적용 ─── */
+function applyTheme(cfg){
+  const r = document.documentElement.style;
+  r.setProperty('--c1', cfg.c1);
+  r.setProperty('--c1-light', cfg.c1Light);
+  r.setProperty('--c1-pale', cfg.c1Pale);
+  r.setProperty('--c1-rgb', cfg.c1Rgb);
+  r.setProperty('--ink', cfg.ink);
+  r.setProperty('--muted', cfg.muted);
+  r.setProperty('--border', cfg.border);
+
+  document.getElementById('meta-theme-color').content = cfg.themeColor;
+  document.getElementById('meta-app-title').content = cfg.appName;
+  document.getElementById('page-title').textContent = cfg.appName + ' — 라디오';
+}
+
+/* ─── 콘텐츠 주입 ─── */
+function applyContent(cfg){
+  document.getElementById('channel-badge').textContent = cfg.channel_badge;
+  document.getElementById('hero-label').textContent = cfg.heroLabel;
+  document.getElementById('hero-title').childNodes[0].textContent = cfg.heroTitle + ' ';
+  document.getElementById('hero-em').textContent = cfg.heroEm;
+  document.getElementById('hero-desc').innerHTML = cfg.heroDesc.replace(/\n/g,'<br>');
+
+  document.getElementById('label-name').textContent = cfg.name_label;
+  document.getElementById('tag-card-title').innerHTML = cfg.tag_card_title;
+  document.getElementById('text-card-title').textContent = cfg.text_placeholder.split('\n')[0].substring(0,8) + '...';
+
+  // textarea placeholder
+  document.getElementById('f-text').placeholder = cfg.text_placeholder;
+
+  // 성공 화면
+  document.getElementById('success-icon').textContent = cfg.success_icon;
+  document.getElementById('success-title').textContent = cfg.success_title;
+  document.getElementById('success-desc').innerHTML = cfg.success_desc.replace(/\n/g,'<br>');
+  document.getElementById('submit-label').textContent = cfg.submit_label;
+
+  // 카테고리 태그
+  const catEl = document.getElementById('cat-tags');
+  catEl.innerHTML = '';
+  cfg.categories.forEach(c => {
+    const span = document.createElement('span');
+    span.className = 'tag';
+    span.textContent = c;
+    span.onclick = () => selectCat(span);
+    catEl.appendChild(span);
+  });
+
+  // 감정 태그
+  const emoEl = document.getElementById('emo-tags');
+  emoEl.innerHTML = '';
+  cfg.emotions.forEach(e => {
+    const span = document.createElement('span');
+    span.className = 'tag';
+    span.textContent = e;
+    span.onclick = () => toggleEmo(span);
+    emoEl.appendChild(span);
+  });
+}
+
+/* ─── 초기화 ─── */
+const TYPE_KEY = getType();
+const CFG = TYPES[TYPE_KEY];
+applyTheme(CFG);
+applyContent(CFG);
+
+/* ─── 상태 변수 ─── */
+let selCat='', selEmos=[];
+let recorder=null, chunks=[], recBlob=null, uploadedFile=null;
+let timerInt=null, secs=0, recActive=false;
+let recognition=null, recognizing=false, sttSecs=0, sttTimer=null;
+
+/* ─── 유틸 ─── */
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+/* ─── 태그 선택 ─── */
+function selectCat(el){
+  document.querySelectorAll('#cat-tags .tag').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); selCat=el.textContent.trim();
+}
+function toggleEmo(el){
+  el.classList.toggle('active');
+  const t=el.textContent.trim();
+  if(el.classList.contains('active')) selEmos.push(t);
+  else selEmos=selEmos.filter(e=>e!==t);
+}
+
+/* ─── 받아쓰기 ─── */
+function addSpacing(prev,next){
+  if(!prev) return next;
+  if(prev.endsWith(' ')||prev.endsWith('\n')) return prev+next;
+  if(/[.!?。]$/.test(prev)) return prev+'\n'+next;
+  return prev+' '+next;
+}
+
+function toggleSTT(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){document.getElementById('stt-status').textContent='❗ 이 브라우저는 받아쓰기를 지원하지 않아요';return;}
+  if(!recognizing){
+    recognizing=true;
+    const btn=document.getElementById('stt-btn');
+    btn.style.background='var(--c1)'; btn.style.color='#fff'; btn.style.borderColor='var(--c1)';
+    document.getElementById('stt-label').textContent='받아쓰기 중지';
+    document.getElementById('stt-timer').style.display='inline';
+    document.getElementById('stt-status').textContent='🔴 듣고 있어요...';
+    sttSecs=0;
+    sttTimer=setInterval(()=>{
+      sttSecs++;
+      document.getElementById('stt-timer').textContent=
+        String(Math.floor(sttSecs/60)).padStart(2,'0')+':'+String(sttSecs%60).padStart(2,'0');
+    },1000);
+    startSTT();
+  } else {
+    recognizing=false;
+    if(recognition){try{recognition.stop();}catch(e){} recognition=null;}
+    clearInterval(sttTimer);
+    const btn=document.getElementById('stt-btn');
+    btn.style.background=''; btn.style.color=''; btn.style.borderColor='';
+    document.getElementById('stt-label').textContent='받아쓰기 시작';
+    document.getElementById('stt-timer').style.display='none';
+    document.getElementById('stt-status').textContent='✅ 받아쓰기 완료';
+  }
+}
+
+function startSTT(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();
+  recognition.lang='ko-KR'; recognition.continuous=false; recognition.interimResults=true;
+  let base=document.getElementById('f-text').value;
+  recognition.onresult=(e)=>{
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal){
+        base=addSpacing(base,e.results[i][0].transcript.trim());
+      } else { interim=e.results[i][0].transcript; }
+    }
+    document.getElementById('f-text').value=base+(interim?' '+interim:'');
+  };
+  recognition.onend=()=>{
+    if(recognizing){
+      base=document.getElementById('f-text').value.trimEnd();
+      try{recognition.start();}catch(e){startSTT();}
+    }
+  };
+  recognition.onerror=(e)=>{
+    if(e.error==='no-speech'&&recognizing){
+      try{recognition.start();}catch(err){startSTT();}
+    } else if(e.error==='not-allowed'){
+      document.getElementById('stt-status').textContent='❗ 마이크 권한이 필요합니다';
+      recognizing=false;
+    }
+  };
+  try{recognition.start();}catch(e){}
+}
+
+/* ─── 음성 녹음 ─── */
+async function toggleRec(){
+  if(!recActive){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      recorder=new MediaRecorder(stream); chunks=[];
+      recorder.ondataavailable=e=>chunks.push(e.data);
+      recorder.onstop=()=>{
+        recBlob=new Blob(chunks,{type:'audio/webm'});
+        const url=URL.createObjectURL(recBlob);
+        document.getElementById('audio-preview').innerHTML=`<audio controls src="${url}"></audio>`;
+        stream.getTracks().forEach(t=>t.stop());
+      };
+      recorder.start(); recActive=true;
+      document.getElementById('rec-btn').classList.add('recording');
+      document.getElementById('rec-label').textContent='녹음 중지';
+      secs=0; document.getElementById('rec-timer').style.display='inline';
+      timerInt=setInterval(()=>{
+        secs++;
+        document.getElementById('rec-timer').textContent=
+          String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
+      },1000);
+    }catch(e){alert('마이크 접근 권한이 필요합니다.');}
+  } else {
+    recorder.stop(); recActive=false; clearInterval(timerInt);
+    document.getElementById('rec-btn').classList.remove('recording');
+    document.getElementById('rec-label').textContent='녹음 시작';
+    document.getElementById('rec-timer').style.display='none';
+  }
+}
+
+function handleFile(input){
+  const f=input.files[0]; if(!f) return;
+  uploadedFile=f; document.getElementById('fname').textContent='✅ '+f.name;
+}
+
+/* ─── 제출 ─── */
+async function submitStory(){
+  const text=document.getElementById('f-text').value.trim();
+  if(!text&&!recBlob&&!uploadedFile){showToast('❗ 텍스트 또는 음성 사연을 입력해주세요.');return;}
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true; btn.innerHTML='<div class="spinner"></div> 전송 중...';
+  const fd=new FormData();
+  fd.append('name',document.getElementById('f-name').value.trim()||'익명');
+  fd.append('contact',document.getElementById('f-contact').value.trim());
+  fd.append('text',text); fd.append('category',selCat);
+  fd.append('emotions',JSON.stringify(selEmos));
+  fd.append('audience_type', TYPE_KEY);   // ← 타입 정보도 함께 저장
+  const vs=recBlob||uploadedFile;
+  if(vs){const ext=vs instanceof File?vs.name.split('.').pop():'webm'; fd.append('voice',vs,`voice.${ext}`);}
+  try{
+    const res=await fetch('/api/stories',{method:'POST',body:fd});
+    const data=await res.json();
+    if(data.success){
+      document.getElementById('form-body').style.display='none';
+      document.getElementById('success-screen').style.display='block';
+      window.scrollTo({top:0,behavior:'smooth'});
+    }else{
+      showToast('❗ '+(data.error||'오류'));
+      btn.disabled=false;
+      btn.innerHTML=`<span>${CFG.submit_label}</span> ✉️`;
+    }
+  }catch(e){
+    showToast('❗ 서버 연결 실패');
+    btn.disabled=false;
+    btn.innerHTML=`<span>${CFG.submit_label}</span> ✉️`;
+  }
+}
+
+/* ─── 폼 리셋 ─── */
+function resetForm(){
+  ['f-text','f-name','f-contact'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('audio-preview').innerHTML='';
+  document.getElementById('fname').textContent='';
+  document.querySelectorAll('.tag').forEach(t=>t.classList.remove('active'));
+  selCat=''; selEmos=[]; recBlob=null; uploadedFile=null;
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=false; btn.innerHTML=`<span>${CFG.submit_label}</span> ✉️`;
+  document.getElementById('form-body').style.display='block';
+  document.getElementById('success-screen').style.display='none';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════════
+     PWA / 설치 안내
+═══════════════════════════════════════════════════ -->
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+function showTab(tab){
+  document.getElementById('tab-android').style.display=tab==='android'?'flex':'none';
+  document.getElementById('tab-ios').style.display=tab==='ios'?'flex':'none';
+  document.querySelectorAll('.install-tab').forEach((t,i)=>{
+    t.classList.toggle('active',(tab==='android'&&i===0)||(tab==='ios'&&i===1));
+  });
+}
+function closeInstallGuide(skip=false){
+  document.getElementById('install-guide').classList.remove('show');
+  if(skip) localStorage.setItem('install-skip','1');
+}
+window.addEventListener('load',()=>{
+  const isInstalled=window.matchMedia('(display-mode: standalone)').matches;
+  let isSkipped=false;
+  try{isSkipped=localStorage.getItem('install-skip')==='1';}catch(e){}
+  if(!isInstalled&&!isSkipped){
+    setTimeout(()=>{
+      const el=document.getElementById('install-guide');
+      if(el) el.classList.add('show');
+    },2000);
+  }
+});
+window.addEventListener('appinstalled',()=>closeInstallGuide());
+</script>
+
+<!-- 설치 안내 팝업 -->
+<div id="install-guide">
+  <div class="install-card">
+    <h3>📱 앱으로 설치하기</h3>
+    <p class="sub">홈 화면에 추가하면 앱처럼 사용할 수 있어요</p>
+    <div class="install-tabs">
+      <button class="install-tab active" onclick="showTab('android')">🤖 안드로이드</button>
+      <button class="install-tab" onclick="showTab('ios')">🍎 아이폰</button>
+    </div>
+    <div id="tab-android" class="install-steps">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>크롬</strong>으로 이 페이지를 열어주세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-text">오른쪽 상단 <strong>⋮ 메뉴</strong>를 탭하세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>"홈 화면에 추가"</strong> 또는 <strong>"앱 설치"</strong>를 탭하세요</div>
+      </div>
+    </div>
+    <div id="tab-ios" class="install-steps" style="display:none">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>사파리</strong>로 이 페이지를 열어주세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-text">하단 <strong>공유 버튼 □↑</strong>을 탭하세요</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>"홈 화면에 추가"</strong>를 탭하세요</div>
+      </div>
+    </div>
+    <button class="install-close" onclick="closeInstallGuide()">확인했어요!</button>
+    <span class="install-skip" onclick="closeInstallGuide(true)">다시 보지 않기</span>
+  </div>
+</div>
+
+<footer style="text-align:center;padding:2rem 1rem;font-size:0.75rem;color:var(--muted);">
+  <a href="/privacy" style="color:var(--muted);">개인정보처리방침</a>
+</footer>
+</body>
+</html>
