@@ -643,6 +643,12 @@ const CFG = TYPES[TYPE_KEY];
 applyTheme(CFG);
 applyContent(CFG);
 
+// 개인정보처리방침 링크에 현재 type 전달
+document.addEventListener('DOMContentLoaded', function(){
+  const pl = document.getElementById('privacy-link');
+  if(pl) pl.href = '/privacy?from=' + TYPE_KEY;
+});
+
 /* ─── 상태 변수 ─── */
 let selCat='', selEmos=[];
 let recorder=null, chunks=[], recBlob=null, uploadedFile=null;
@@ -899,7 +905,7 @@ window.addEventListener('appinstalled',()=>closeInstallGuide());
 </div>
 
 <footer style="text-align:center;padding:2rem 1rem;font-size:0.75rem;color:var(--muted);">
-  <a href="/privacy" style="color:var(--muted);">개인정보처리방침</a>
+  <a id="privacy-link" href="/privacy" style="color:var(--muted);">개인정보처리방침</a>
 </footer>
 </body>
 </html>
