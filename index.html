@@ -428,6 +428,8 @@ function toggleEmo(el){
   else selEmos=selEmos.filter(e=>e!==t);
 }
 
+let recognition=null;
+
 async function toggleRec(){
   if(!recActive){
     try{
@@ -449,12 +451,38 @@ async function toggleRec(){
         document.getElementById('rec-timer').textContent=
           String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
       },1000);
+
+      // 음성 → 텍스트 받아쓰기 시작
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if(SR){
+        recognition = new SR();
+        recognition.lang = 'ko-KR';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        let finalText = document.getElementById('f-text').value;
+        recognition.onresult = (e) => {
+          let interim = '';
+          for(let i=e.resultIndex; i<e.results.length; i++){
+            if(e.results[i].isFinal){
+              finalText += e.results[i][0].transcript;
+            } else {
+              interim += e.results[i][0].transcript;
+            }
+          }
+          document.getElementById('f-text').value = finalText + interim;
+        };
+        recognition.onerror = () => {};
+        recognition.start();
+      }
+
     }catch(e){alert('마이크 접근 권한이 필요합니다.');}
   }else{
     recorder.stop(); recActive=false; clearInterval(timerInt);
     document.getElementById('rec-btn').classList.remove('recording');
     document.getElementById('rec-label').textContent='녹음 시작';
     document.getElementById('rec-timer').style.display='none';
+    // 받아쓰기 중지
+    if(recognition){ recognition.stop(); recognition=null; }
   }
 }
 
