@@ -349,21 +349,6 @@ body {
       🎙️ DJ STUDIO
       <div class="on-air"><span class="on-dot"></span> ON AIR</div>
     </div>
-    <!-- 비용 상태 표시 (헤더 고정) -->
-    <div id="header-cost" style="display:none; align-items:center; gap:1.2rem;
-      font-family:'DM Mono',monospace; font-size:0.75rem;">
-      <div style="display:flex;align-items:center;gap:0.5rem;">
-        <span style="color:var(--muted);">이번</span>
-        <span id="hc-this" style="color:var(--gold);font-weight:700;">—</span>
-        <span id="hc-tokens" style="color:var(--muted);font-size:0.68rem;"></span>
-      </div>
-      <div style="width:1px;height:16px;background:var(--border);"></div>
-      <div style="display:flex;align-items:center;gap:0.5rem;">
-        <span style="color:var(--muted);">누적</span>
-        <span id="hc-total" style="color:var(--cyan);font-weight:700;">—</span>
-        <span id="hc-count" style="color:var(--muted);font-size:0.68rem;"></span>
-      </div>
-    </div>
     <div class="header-actions">
       <button class="btn btn-ghost" onclick="loadStories()">🔄 새로고침</button>
       <button class="btn btn-ghost" onclick="location.href='/admin'">← 관리자</button>
@@ -579,6 +564,31 @@ body {
                 <div class="suno-label">🎵 Suno AI 프롬프트</div>
                 <div class="suno-prompt" id="sp-outro"></div>
                 <button class="suno-copy-btn" onclick="copySuno('sp-outro')">복사</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 💰 비용 표시 -->
+          <div id="cost-box" style="display:none; margin-top:1.5rem;
+            background:var(--card2); border:1px solid var(--border2);
+            border-radius:12px; padding:1.2rem 1.5rem;">
+            <div style="font-size:0.7rem; font-family:'DM Mono',monospace;
+              color:var(--gold); letter-spacing:0.12em; text-transform:uppercase;
+              margin-bottom:0.8rem;">💰 API 비용</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
+              <div style="background:var(--card); border:1px solid var(--border);
+                border-radius:8px; padding:0.8rem 1rem;">
+                <div style="font-size:0.7rem; color:var(--muted); margin-bottom:0.3rem;">이번 생성</div>
+                <div id="hc-this" style="font-family:'DM Mono',monospace; font-size:1rem;
+                  font-weight:700; color:var(--gold);">—</div>
+                <div id="hc-tokens" style="font-size:0.7rem; color:var(--muted); margin-top:0.2rem;"></div>
+              </div>
+              <div style="background:var(--card); border:1px solid var(--border);
+                border-radius:8px; padding:0.8rem 1rem;">
+                <div style="font-size:0.7rem; color:var(--muted); margin-bottom:0.3rem;">누적 합계</div>
+                <div id="hc-total" style="font-family:'DM Mono',monospace; font-size:1rem;
+                  font-weight:700; color:var(--cyan);">—</div>
+                <div id="hc-count" style="font-size:0.7rem; color:var(--muted); margin-top:0.2rem;"></div>
               </div>
             </div>
           </div>
@@ -958,10 +968,12 @@ function copyAll(){
 // ── 비용 조회 ─────────────────────────────────
 async function loadUsageCost(){
   // 헤더 비용 바 즉시 표시
-  const hBar = document.getElementById('header-cost');
-  hBar.style.display = 'flex';
+  const box = document.getElementById('cost-box');
+  box.style.display = 'block';
   document.getElementById('hc-this').textContent = '…';
   document.getElementById('hc-total').textContent = '…';
+  // 비용 박스로 부드럽게 스크롤
+  setTimeout(() => box.scrollIntoView({ behavior:'smooth', block:'end' }), 100);
 
   try {
     const res = await fetch('/api/dj/usage');
