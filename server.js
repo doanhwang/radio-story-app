@@ -4,40 +4,31 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
-const { Low } = require('lowdb');
-const { JSONFile } = require('lowdb/node');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Supabase 연결
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://tureziabjqwzeytedrxt.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_48PiDAwqyfVVuXTIqS7dmw_oz6UD8gc';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 음성 파일 임시 저장
 const UPLOADS_DIR = path.join('/tmp', 'uploads');
-const DATA_FILE = path.join('/tmp', 'stories.json');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-
-const adapter = new JSONFile(DATA_FILE);
-const db = new Low(adapter, { stories: [] });
-
-async function initDB() {
-  await db.read();
-  db.data ||= { stories: [] };
-  await db.write();
-}
 
 app.use(cors());
 app.use(express.json());
 
-// 클라이언트 앱 (사연 보내기)
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// 관리자 앱 (비밀번호로 보호)
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
-});
+// 클라이언트 앱
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+// 관리자 앱
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 app.use('/uploads', express.static(UPLOADS_DIR));
 
+// 음성 업로드 설정
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => {
@@ -47,83 +38,132 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
+// ─── 사연 제출 ─────────────────────────────────
 app.post('/api/stories', upload.single('voice'), async (req, res) => {
   try {
-    await db.read();
     const { name, contact, text, category, emotions } = req.body;
     if (!text && !req.file) return res.status(400).json({ error: '텍스트 또는 음성을 입력해주세요.' });
+
     const story = {
-      id: uuidv4(), name: name || '익명', contact: contact || '',
-      text: text || '', category: category || '',
+      id: uuidv4(),
+      name: name || '익명',
+      contact: contact || '',
+      text: text || '',
+      category: category || '',
       emotions: emotions ? JSON.parse(emotions) : [],
-      voiceFile: req.file ? req.file.filename : null,
-      hasVoice: !!req.file, timestamp: new Date().toISOString()
+      voice_file: req.file ? req.file.filename : null,
+      has_voice: !!req.file,
+      ai_emotion: ''
     };
-    db.data.stories.unshift(story);
-    await db.write();
+
+    const { error } = await supabase.from('stories').insert([story]);
+    if (error) throw error;
+
     res.json({ success: true, id: story.id });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: '서버 오류' });
+    res.status(500).json({ error: '서버 오류: ' + err.message });
   }
 });
 
+// ─── 사연 목록 조회 ────────────────────────────
 app.get('/api/stories', async (req, res) => {
-  await db.read();
-  const { filter, limit = 500 } = req.query;
-  let list = db.data.stories;
-  if (filter && filter !== '전체') {
-    if (filter === '텍스트') list = list.filter(s => s.text && !s.hasVoice);
-    else if (filter === '음성') list = list.filter(s => s.hasVoice);
-    else list = list.filter(s => s.category === filter);
+  try {
+    const { filter, limit = 500 } = req.query;
+    let query = supabase.from('stories').select('*').order('created_at', { ascending: false }).limit(parseInt(limit));
+
+    if (filter && filter !== '전체') {
+      if (filter === '텍스트') query = query.not('text', 'eq', '').eq('has_voice', false);
+      else if (filter === '음성') query = query.eq('has_voice', true);
+      else query = query.eq('category', filter);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const items = (data || []).map(s => ({
+      ...s,
+      timestamp: s.created_at,
+      hasVoice: s.has_voice,
+      voiceUrl: s.voice_file ? `/uploads/${s.voice_file}` : null,
+      aiEmotion: s.ai_emotion || ''
+    }));
+
+    res.json({ total: items.length, items });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
-  const items = list.slice(0, parseInt(limit)).map(s => ({
-    ...s, voiceUrl: s.voiceFile ? `/uploads/${s.voiceFile}` : null
-  }));
-  res.json({ total: list.length, items });
 });
 
+// ─── 통계 ──────────────────────────────────────
 app.get('/api/stats', async (req, res) => {
-  await db.read();
-  const stories = db.data.stories;
-  const today = new Date().toDateString();
-  res.json({
-    total: stories.length,
-    textCount: stories.filter(s => s.text).length,
-    voiceCount: stories.filter(s => s.hasVoice).length,
-    todayCount: stories.filter(s => new Date(s.timestamp).toDateString() === today).length
-  });
-});
+  try {
+    const { data, error } = await supabase.from('stories').select('*');
+    if (error) throw error;
 
-app.delete('/api/stories/:id', async (req, res) => {
-  await db.read();
-  const story = db.data.stories.find(s => s.id === req.params.id);
-  if (story && story.voiceFile) {
-    const fp = path.join(UPLOADS_DIR, story.voiceFile);
-    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    const today = new Date().toDateString();
+    res.json({
+      total: data.length,
+      textCount: data.filter(s => s.text).length,
+      voiceCount: data.filter(s => s.has_voice).length,
+      todayCount: data.filter(s => new Date(s.created_at).toDateString() === today).length
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  db.data.stories = db.data.stories.filter(s => s.id !== req.params.id);
-  await db.write();
-  res.json({ success: true });
 });
 
-app.delete('/api/stories', async (req, res) => {
-  await db.read();
-  db.data.stories.forEach(s => {
-    if (s.voiceFile) {
-      const fp = path.join(UPLOADS_DIR, s.voiceFile);
+// ─── AI 감정 업데이트 ──────────────────────────
+app.patch('/api/stories/:id/emotion', async (req, res) => {
+  try {
+    const { aiEmotion } = req.body;
+    const { error } = await supabase.from('stories').update({ ai_emotion: aiEmotion }).eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 사연 삭제 ─────────────────────────────────
+app.delete('/api/stories/:id', async (req, res) => {
+  try {
+    // 음성 파일 삭제
+    const { data } = await supabase.from('stories').select('voice_file').eq('id', req.params.id).single();
+    if (data && data.voice_file) {
+      const fp = path.join(UPLOADS_DIR, data.voice_file);
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
     }
-  });
-  db.data.stories = [];
-  await db.write();
-  res.json({ success: true });
+    const { error } = await supabase.from('stories').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-initDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🎙️  라디오 사연 서버 실행 중`);
-    console.log(`📡  사연 보내기: http://localhost:${PORT}`);
-    console.log(`🔐  관리자: http://localhost:${PORT}/admin`);
-  });
+// ─── 전체 삭제 ─────────────────────────────────
+app.delete('/api/stories', async (req, res) => {
+  try {
+    const { data } = await supabase.from('stories').select('voice_file');
+    (data || []).forEach(s => {
+      if (s.voice_file) {
+        const fp = path.join(UPLOADS_DIR, s.voice_file);
+        if (fs.existsSync(fp)) fs.unlinkSync(fp);
+      }
+    });
+    const { error } = await supabase.from('stories').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`🎙️  라디오 사연 서버 실행 중`);
+  console.log(`📡  사연 보내기: http://localhost:${PORT}`);
+  console.log(`🔐  관리자: http://localhost:${PORT}/admin`);
+  console.log(`🗄️  Supabase 연결됨: ${SUPABASE_URL}`);
 });
