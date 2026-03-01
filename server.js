@@ -30,6 +30,7 @@ app.get('/test', (req, res) => res.sendFile(path.join(__dirname, 'test.html')));
 // /story?type=helper  → 장애인 활동지원사
 // /story?type=care    → 치매 가족 돌봄자
 app.get('/story', (req, res) => res.sendFile(path.join(__dirname, 'story.html')));
+app.get('/dj', (req, res) => res.sendFile(path.join(__dirname, 'dj.html')));
 app.get('/manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'manifest.json')));
 app.get('/service-worker.js', (req, res) => res.sendFile(path.join(__dirname, 'service-worker.js')));
 app.get('/icon-192.png', (req, res) => res.sendFile(path.join(__dirname, 'icon-192.png')));
