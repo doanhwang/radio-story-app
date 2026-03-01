@@ -65,6 +65,21 @@ async function uploadToStorage(filePath, fileName) {
   return urlData.publicUrl;
 }
 
+// ─── Claude 모델별 요금 (USD per 1M tokens) ────
+const CLAUDE_PRICING = {
+  'claude-opus-4-5':       { input: 15.0,  output: 75.0  },
+  'claude-sonnet-4-20250514': { input: 3.0,   output: 15.0  },
+  'claude-haiku-4-5-20251001':{ input: 0.25,  output: 1.25  },
+};
+const MODEL = 'claude-opus-4-5';
+
+function calcCost(inputTokens, outputTokens, model) {
+  const price = CLAUDE_PRICING[model] || CLAUDE_PRICING['claude-opus-4-5'];
+  const inputCost  = (inputTokens  / 1_000_000) * price.input;
+  const outputCost = (outputTokens / 1_000_000) * price.output;
+  return { inputCost, outputCost, totalCost: inputCost + outputCost };
+}
+
 // ─── Claude API 프록시 (DJ 방송 생성) ─────────
 app.post('/api/dj/generate', async (req, res) => {
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
@@ -72,11 +87,11 @@ app.post('/api/dj/generate', async (req, res) => {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다. Railway Variables를 확인하세요.' });
   }
 
-  const { prompt } = req.body;
+  const { prompt, story_id, story_name, dj_name } = req.body;
   if (!prompt) return res.status(400).json({ error: 'prompt가 없습니다.' });
 
   const body = JSON.stringify({
-    model: 'claude-opus-4-5',
+    model: MODEL,
     max_tokens: 4000,
     stream: true,
     messages: [{ role: 'user', content: prompt }]
@@ -95,7 +110,6 @@ app.post('/api/dj/generate', async (req, res) => {
   };
 
   const apiReq = https.request(options, (apiRes) => {
-    // Anthropic API 오류 (401, 429 등) — 스트리밍 전에 처리
     if (apiRes.statusCode !== 200) {
       let errBody = '';
       apiRes.on('data', d => errBody += d);
@@ -110,16 +124,62 @@ app.post('/api/dj/generate', async (req, res) => {
       return;
     }
 
-    // 정상 스트리밍 응답 전달
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    apiRes.on('data', (chunk) => res.write(chunk));
-    apiRes.on('end', () => {
+    let rawBuffer = '';
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    apiRes.on('data', (chunk) => {
+      const text = chunk.toString();
+      rawBuffer += text;
+      res.write(chunk); // 클라이언트에 그대로 전달
+
+      // 토큰 사용량 파싱 (message_delta 이벤트)
+      const lines = text.split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        try {
+          const j = JSON.parse(line.slice(5).trim());
+          if (j.type === 'message_start' && j.message?.usage) {
+            inputTokens = j.message.usage.input_tokens || 0;
+          }
+          if (j.type === 'message_delta' && j.usage) {
+            outputTokens = j.usage.output_tokens || 0;
+          }
+        } catch(e) {}
+      }
+    });
+
+    apiRes.on('end', async () => {
       res.write('data: [DONE]\n\n');
       res.end();
+
+      // 비용 계산 및 Supabase 저장
+      if (inputTokens > 0 || outputTokens > 0) {
+        const { inputCost, outputCost, totalCost } = calcCost(inputTokens, outputTokens, MODEL);
+        const record = {
+          id: uuidv4(),
+          model: MODEL,
+          story_id: story_id || null,
+          story_name: story_name || '알 수 없음',
+          dj_name: dj_name || 'DJ 은하',
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          input_cost_usd: inputCost,
+          output_cost_usd: outputCost,
+          total_cost_usd: totalCost,
+        };
+        try {
+          await supabase.from('dj_usage').insert([record]);
+          console.log(`💰 DJ 생성 비용: $${totalCost.toFixed(6)} (in:${inputTokens} / out:${outputTokens})`);
+        } catch(e) {
+          console.error('dj_usage 저장 실패:', e.message);
+        }
+      }
     });
   });
 
@@ -132,6 +192,26 @@ app.post('/api/dj/generate', async (req, res) => {
 
   apiReq.write(body);
   apiReq.end();
+});
+
+// ─── DJ 비용 통계 조회 ──────────────────────────
+app.get('/api/dj/usage', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('dj_usage')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+
+    const total_cost   = data.reduce((s, r) => s + (r.total_cost_usd || 0), 0);
+    const total_input  = data.reduce((s, r) => s + (r.input_tokens   || 0), 0);
+    const total_output = data.reduce((s, r) => s + (r.output_tokens  || 0), 0);
+
+    res.json({ records: data, total_cost, total_input, total_output, count: data.length });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 
