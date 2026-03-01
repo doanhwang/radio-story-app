@@ -18,10 +18,40 @@ body{
   background:var(--cream);
   color:var(--ink);
   min-height:100vh;
-  background-image:
-    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(192,85,42,0.07) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 80% at 90% 100%, rgba(212,168,67,0.08) 0%, transparent 60%);
+  position:relative;
 }
+
+/* ─── 빈티지 배경 ─── */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  background:
+    /* 노이즈 그레인 느낌 */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
+    /* 방사형 빈티지 조명 */
+    radial-gradient(ellipse 100% 70% at 50% 0%, rgba(212,168,67,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 0% 50%, rgba(192,85,42,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 60% at 100% 50%, rgba(192,85,42,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 50% at 50% 100%, rgba(139,80,40,0.1) 0%, transparent 55%);
+}
+
+/* SVG 빈티지 패턴 배경 */
+body::after {
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:0.035;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c0552a'%3E%3Cpath d='M30 0 C30 0 35 10 30 15 C25 10 30 0 30 0Z M30 60 C30 60 35 50 30 45 C25 50 30 60 30 60Z M0 30 C0 30 10 25 15 30 C10 35 0 30 0 30Z M60 30 C60 30 50 25 45 30 C50 35 60 30 60 30Z'/%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3Ccircle cx='0' cy='0' r='1'/%3E%3Ccircle cx='60' cy='0' r='1'/%3E%3Ccircle cx='0' cy='60' r='1'/%3E%3Ccircle cx='60' cy='60' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-size: 60px 60px;
+}
+
+/* 콘텐츠가 배경 위에 오도록 */
+.site-header, .hero, .form-wrap, .toast { position: relative; z-index: 1; }
 
 /* ─── 헤더 ─── */
 .site-header {
