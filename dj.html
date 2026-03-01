@@ -349,6 +349,21 @@ body {
       🎙️ DJ STUDIO
       <div class="on-air"><span class="on-dot"></span> ON AIR</div>
     </div>
+    <!-- 비용 상태 표시 (헤더 고정) -->
+    <div id="header-cost" style="display:none; align-items:center; gap:1.2rem;
+      font-family:'DM Mono',monospace; font-size:0.75rem;">
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <span style="color:var(--muted);">이번</span>
+        <span id="hc-this" style="color:var(--gold);font-weight:700;">—</span>
+        <span id="hc-tokens" style="color:var(--muted);font-size:0.68rem;"></span>
+      </div>
+      <div style="width:1px;height:16px;background:var(--border);"></div>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <span style="color:var(--muted);">누적</span>
+        <span id="hc-total" style="color:var(--cyan);font-weight:700;">—</span>
+        <span id="hc-count" style="color:var(--muted);font-size:0.68rem;"></span>
+      </div>
+    </div>
     <div class="header-actions">
       <button class="btn btn-ghost" onclick="loadStories()">🔄 새로고침</button>
       <button class="btn btn-ghost" onclick="location.href='/admin'">← 관리자</button>
@@ -438,28 +453,6 @@ body {
         <!-- 진행 바 -->
         <div class="progress-bar" id="progress-bar">
           <div class="progress-fill" id="progress-fill"></div>
-        </div>
-
-        <!-- 비용 표시 -->
-        <div id="cost-box" style="display:none;
-          background:var(--card); border:1px solid var(--border);
-          border-radius:10px; padding:0.9rem 1.2rem; margin-bottom:1rem;
-          flex-direction:column; gap:0.4rem;">
-          <div style="font-size:0.7rem;font-family:'DM Mono',monospace;
-            color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;
-            margin-bottom:0.2rem;">💰 API 사용 비용</div>
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
-            <div style="font-size:0.82rem;color:var(--text);">
-              이번 생성:
-              <span id="cost-this" style="color:var(--gold);font-family:'DM Mono',monospace;font-weight:700;">—</span>
-              <span id="cost-tokens" style="color:var(--muted);font-size:0.72rem;margin-left:0.4rem;"></span>
-            </div>
-            <div style="font-size:0.82rem;color:var(--text);">
-              누적 합계:
-              <span id="cost-total" style="color:var(--cyan);font-family:'DM Mono',monospace;font-weight:700;">—</span>
-              <span id="cost-count" style="color:var(--muted);font-size:0.72rem;margin-left:0.4rem;"></span>
-            </div>
-          </div>
         </div>
 
         <button class="generate-btn" id="gen-btn" onclick="generateBroadcast()">
@@ -964,13 +957,11 @@ function copyAll(){
 // ── 유틸 ──────────────────────────────────────
 // ── 비용 조회 ─────────────────────────────────
 async function loadUsageCost(){
-  // 박스 무조건 먼저 표시
-  const box = document.getElementById('cost-box');
-  box.style.cssText = box.style.cssText.replace('display:none', 'display:flex');
-  box.style.display = 'flex';
-
-  document.getElementById('cost-this').textContent = '계산 중...';
-  document.getElementById('cost-total').textContent = '계산 중...';
+  // 헤더 비용 바 즉시 표시
+  const hBar = document.getElementById('header-cost');
+  hBar.style.display = 'flex';
+  document.getElementById('hc-this').textContent = '…';
+  document.getElementById('hc-total').textContent = '…';
 
   try {
     const res = await fetch('/api/dj/usage');
@@ -978,30 +969,28 @@ async function loadUsageCost(){
     const d = await res.json();
 
     if(d.records && d.records.length > 0){
-      const latest = d.records[0];
+      const latest   = d.records[0];
       const thisCost = Number(latest.total_cost_usd) || 0;
       const inTok    = Number(latest.input_tokens)   || 0;
       const outTok   = Number(latest.output_tokens)  || 0;
-
-      document.getElementById('cost-this').textContent =
-        '$' + thisCost.toFixed(5) + ' (₩' + Math.round(thisCost * 1380).toLocaleString() + ')';
-      document.getElementById('cost-tokens').textContent =
-        'in:' + inTok.toLocaleString() + ' / out:' + outTok.toLocaleString() + ' tokens';
-
       const totalCost = Number(d.total_cost) || 0;
-      document.getElementById('cost-total').textContent =
+
+      document.getElementById('hc-this').textContent =
+        '$' + thisCost.toFixed(4) + ' (₩' + Math.round(thisCost * 1380).toLocaleString() + ')';
+      document.getElementById('hc-tokens').textContent =
+        inTok.toLocaleString() + ' / ' + outTok.toLocaleString() + ' tok';
+      document.getElementById('hc-total').textContent =
         '$' + totalCost.toFixed(4) + ' (₩' + Math.round(totalCost * 1380).toLocaleString() + ')';
-      document.getElementById('cost-count').textContent =
-        '총 ' + d.count + '회 생성';
+      document.getElementById('hc-count').textContent =
+        d.count + '회';
     } else {
-      // dj_usage 테이블 없거나 비어있음
-      document.getElementById('cost-this').textContent = '기록 없음 (테이블 확인 필요)';
-      document.getElementById('cost-total').textContent = '$0.00000';
+      document.getElementById('hc-this').textContent = '기록없음';
+      document.getElementById('hc-total').textContent = '$0.0000';
     }
   } catch(e) {
     console.error('비용 조회 실패:', e);
-    document.getElementById('cost-this').textContent = '조회 실패: ' + e.message;
-    document.getElementById('cost-total').textContent = '—';
+    document.getElementById('hc-this').textContent = 'err';
+    document.getElementById('hc-total').textContent = 'err';
   }
 }
 
