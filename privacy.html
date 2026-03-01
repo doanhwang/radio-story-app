@@ -10,9 +10,21 @@ h1 { font-size:1.4rem; border-bottom:2px solid #e2d8f5; padding-bottom:0.8rem; m
 h2 { font-size:1rem; color:#8b65cc; margin-top:2rem; }
 p, li { font-size:0.9rem; color:#555; }
 a { color:#8b65cc; }
+.back-btn {
+  display:inline-flex; align-items:center; gap:0.4rem;
+  padding:0.55rem 1.2rem; border-radius:8px;
+  border:1.5px solid #e2d8f5; background:#fff;
+  color:#8b65cc; font-size:0.85rem; font-weight:600;
+  cursor:pointer; text-decoration:none;
+  transition:all 0.2s; margin-bottom:1.5rem;
+}
+.back-btn:hover { background:#f8f4ff; border-color:#b08ee0; }
 </style>
 </head>
 <body>
+
+<a class="back-btn" onclick="goBack(); return false;" href="#">← 돌아가기</a>
+
 <h1>📋 개인정보처리방침</h1>
 <p>라디오 사연함(이하 "서비스")은 이용자의 개인정보를 소중히 여깁니다.</p>
 
@@ -39,9 +51,18 @@ a { color:#8b65cc; }
 
 <h2>6. 문의</h2>
 <p>개인정보 관련 문의는 아래 이메일로 연락해 주세요.</p>
-<p><strong>이메일:</strong> <a href="mailto:doanhwang@gmail.com" style="color:inherit;">doanhwang@gmail.com</a></p>
+<p><strong>이메일:</strong> <a href="mailto:doanhwang@gmail.com">doanhwang@gmail.com</a></p>
 
-<p style="margin-top:2rem; font-size:0.8rem; color:#aaa;">시행일: 2026년 3월 1일</p>
-<p><a href="/">← 돌아가기</a></p>
+<p style="margin-top:3rem; font-size:0.78rem; color:#aaa;">시행일: 2026년 3월 1일</p>
+
+<script>
+function goBack(){
+  if(document.referrer){
+    history.back();
+  } else {
+    window.location.href = '/story?type=self';
+  }
+}
+</script>
 </body>
 </html>
