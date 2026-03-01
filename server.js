@@ -22,6 +22,7 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.get('/test', (req, res) => res.sendFile(path.join(__dirname, 'test.html')));
 
 // 음성 업로드 임시 저장
 const storage = multer.diskStorage({
