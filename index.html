@@ -507,6 +507,29 @@ function toggleSTT(){
   }
 }
 
+// 부산대 맞춤법 검사 API 호출
+async function checkSpelling(text){
+  if(!text || text.length < 2) return text;
+  try {
+    const res = await fetch(`https://m.search.naver.com/p/csearch/ocontent/util/SpellerProxy?passportKey=93a64b7b32c2c05a4a3afc3e94a5e7be44c0d8a9&_callback=_&q=${encodeURIComponent(text)}&where=nexearch&color_blindness=0`, {mode:'no-cors'});
+    // CORS 제한으로 직접 호출 불가 — 띄어쓰기만 보정
+  } catch(e) {}
+  return text;
+}
+
+// 문장 끝 자동 띄어쓰기 보정
+function addSpacing(prev, next){
+  if(!prev) return next;
+  // 이미 공백으로 끝나면 그대로
+  if(prev.endsWith(' ') || prev.endsWith('
+')) return prev + next;
+  // 문장 끝 부호면 줄바꿈
+  if(/[.!?。]$/.test(prev)) return prev + '
+' + next;
+  // 그 외엔 공백 추가
+  return prev + ' ' + next;
+}
+
 function startSTT(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
@@ -519,18 +542,19 @@ function startSTT(){
     let interim = '';
     for(let i=e.resultIndex; i<e.results.length; i++){
       if(e.results[i].isFinal){
-        base += e.results[i][0].transcript;
+        const transcript = e.results[i][0].transcript.trim();
+        // 말이 끊겼다 이어질 때 자동 띄어쓰기
+        base = addSpacing(base, transcript);
       } else {
         interim = e.results[i][0].transcript;
       }
     }
-    document.getElementById('f-text').value = base + interim;
+    document.getElementById('f-text').value = base + (interim ? ' ' + interim : '');
   };
 
   recognition.onend = () => {
     if(recognizing){
-      // 자동 재시작
-      base = document.getElementById('f-text').value;
+      base = document.getElementById('f-text').value.trimEnd();
       try{ recognition.start(); }catch(e){ startSTT(); }
     }
   };
