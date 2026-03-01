@@ -69,7 +69,7 @@ async function uploadToStorage(filePath, fileName) {
 app.post('/api/dj/generate', async (req, res) => {
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_KEY) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다.' });
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다. Railway Variables를 확인하세요.' });
   }
 
   const { prompt } = req.body;
@@ -81,12 +81,6 @@ app.post('/api/dj/generate', async (req, res) => {
     stream: true,
     messages: [{ role: 'user', content: prompt }]
   });
-
-  // SSE 스트리밍 헤더
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
 
   const options = {
     hostname: 'api.anthropic.com',
@@ -101,9 +95,28 @@ app.post('/api/dj/generate', async (req, res) => {
   };
 
   const apiReq = https.request(options, (apiRes) => {
-    apiRes.on('data', (chunk) => {
-      res.write(chunk);
-    });
+    // Anthropic API 오류 (401, 429 등) — 스트리밍 전에 처리
+    if (apiRes.statusCode !== 200) {
+      let errBody = '';
+      apiRes.on('data', d => errBody += d);
+      apiRes.on('end', () => {
+        try {
+          const parsed = JSON.parse(errBody);
+          res.status(apiRes.statusCode).json({ error: parsed.error?.message || errBody });
+        } catch(e) {
+          res.status(apiRes.statusCode).json({ error: errBody || 'Anthropic API 오류' });
+        }
+      });
+      return;
+    }
+
+    // 정상 스트리밍 응답 전달
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    apiRes.on('data', (chunk) => res.write(chunk));
     apiRes.on('end', () => {
       res.write('data: [DONE]\n\n');
       res.end();
@@ -111,8 +124,10 @@ app.post('/api/dj/generate', async (req, res) => {
   });
 
   apiReq.on('error', (e) => {
-    res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
-    res.end();
+    console.error('Anthropic API 요청 오류:', e.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: '서버 연결 오류: ' + e.message });
+    }
   });
 
   apiReq.write(body);
