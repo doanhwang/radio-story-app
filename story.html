@@ -326,8 +326,11 @@ audio{width:100%;border-radius:8px;margin-top:1rem;}
           <input type="text" id="f-name" placeholder="익명도 괜찮아요">
         </div>
         <div class="field">
-          <label>연락처 (선택)</label>
+          <label>연락처 <span style="font-weight:400;color:var(--muted);">(선택)</span></label>
           <input type="text" id="f-contact" placeholder="이메일 또는 전화번호">
+          <p style="font-size:0.76rem;color:var(--c1);margin-top:0.35rem;line-height:1.5;">
+            ✏️ 추후 혜택 산정을 위해 가급적 연락처를 남겨주세요.
+          </p>
         </div>
       </div>
     </div>
@@ -833,15 +836,17 @@ function showTab(tab){
     t.classList.toggle('active',(tab==='android'&&i===0)||(tab==='ios'&&i===1));
   });
 }
-function closeInstallGuide(skip=false){
+function closeInstallGuide(skipToday=false){
   document.getElementById('install-guide').classList.remove('show');
-  if(skip) localStorage.setItem('install-skip','1');
+  if(skipToday){
+    try{localStorage.setItem('install-skip-date', new Date().toDateString());}catch(e){}
+  }
 }
 window.addEventListener('load',()=>{
   const isInstalled=window.matchMedia('(display-mode: standalone)').matches;
-  let isSkipped=false;
-  try{isSkipped=localStorage.getItem('install-skip')==='1';}catch(e){}
-  if(!isInstalled&&!isSkipped){
+  let skippedToday=false;
+  try{skippedToday=localStorage.getItem('install-skip-date')===new Date().toDateString();}catch(e){}
+  if(!isInstalled&&!skippedToday){
     setTimeout(()=>{
       const el=document.getElementById('install-guide');
       if(el) el.classList.add('show');
@@ -889,7 +894,7 @@ window.addEventListener('appinstalled',()=>closeInstallGuide());
       </div>
     </div>
     <button class="install-close" onclick="closeInstallGuide()">확인했어요!</button>
-    <span class="install-skip" onclick="closeInstallGuide(true)">다시 보지 않기</span>
+    <span class="install-skip" onclick="closeInstallGuide(true)">오늘은 그만 보기</span>
   </div>
 </div>
 
