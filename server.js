@@ -9,26 +9,21 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Supabase 연결
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://tureziabjqwzeytedrxt.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_publishable_48PiDAwqyfVVuXTIqS7dmw_oz6UD8gc';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 음성 파일 임시 저장
+// 임시 업로드 폴더 (Supabase 업로드 전 임시 저장)
 const UPLOADS_DIR = path.join('/tmp', 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 app.use(cors());
 app.use(express.json());
 
-// 클라이언트 앱
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-// 관리자 앱
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
-app.use('/uploads', express.static(UPLOADS_DIR));
-
-// 음성 업로드 설정
+// 음성 업로드 임시 저장
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => {
@@ -38,11 +33,39 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
+// ─── Supabase Storage 업로드 함수 ──────────────
+async function uploadToStorage(filePath, fileName) {
+  const fileBuffer = fs.readFileSync(filePath);
+  const ext = path.extname(fileName);
+  const mimeMap = { '.webm':'audio/webm', '.mp3':'audio/mpeg', '.wav':'audio/wav', '.m4a':'audio/mp4', '.ogg':'audio/ogg' };
+  const contentType = mimeMap[ext] || 'audio/webm';
+
+  const { data, error } = await supabase.storage
+    .from('voices')
+    .upload(fileName, fileBuffer, { contentType, upsert: true });
+
+  if (error) throw error;
+
+  const { data: urlData } = supabase.storage.from('voices').getPublicUrl(fileName);
+  return urlData.publicUrl;
+}
+
 // ─── 사연 제출 ─────────────────────────────────
 app.post('/api/stories', upload.single('voice'), async (req, res) => {
   try {
     const { name, contact, text, category, emotions } = req.body;
     if (!text && !req.file) return res.status(400).json({ error: '텍스트 또는 음성을 입력해주세요.' });
+
+    let voiceUrl = null;
+    let voiceFile = null;
+
+    // 음성 파일이 있으면 Supabase Storage에 업로드
+    if (req.file) {
+      voiceFile = req.file.filename;
+      voiceUrl = await uploadToStorage(req.file.path, req.file.filename);
+      // 임시 파일 삭제
+      fs.unlinkSync(req.file.path);
+    }
 
     const story = {
       id: uuidv4(),
@@ -51,7 +74,8 @@ app.post('/api/stories', upload.single('voice'), async (req, res) => {
       text: text || '',
       category: category || '',
       emotions: emotions ? JSON.parse(emotions) : [],
-      voice_file: req.file ? req.file.filename : null,
+      voice_file: voiceFile,
+      voice_url: voiceUrl,
       has_voice: !!req.file,
       ai_emotion: ''
     };
@@ -66,7 +90,7 @@ app.post('/api/stories', upload.single('voice'), async (req, res) => {
   }
 });
 
-// ─── 사연 목록 조회 ────────────────────────────
+// ─── 사연 목록 ─────────────────────────────────
 app.get('/api/stories', async (req, res) => {
   try {
     const { filter, limit = 500 } = req.query;
@@ -85,13 +109,12 @@ app.get('/api/stories', async (req, res) => {
       ...s,
       timestamp: s.created_at,
       hasVoice: s.has_voice,
-      voiceUrl: s.voice_file ? `/uploads/${s.voice_file}` : null,
+      voiceUrl: s.voice_url || null,
       aiEmotion: s.ai_emotion || ''
     }));
 
     res.json({ total: items.length, items });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -101,7 +124,6 @@ app.get('/api/stats', async (req, res) => {
   try {
     const { data, error } = await supabase.from('stories').select('*');
     if (error) throw error;
-
     const today = new Date().toDateString();
     res.json({
       total: data.length,
@@ -114,26 +136,13 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-// ─── AI 감정 업데이트 ──────────────────────────
-app.patch('/api/stories/:id/emotion', async (req, res) => {
-  try {
-    const { aiEmotion } = req.body;
-    const { error } = await supabase.from('stories').update({ ai_emotion: aiEmotion }).eq('id', req.params.id);
-    if (error) throw error;
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ─── 사연 삭제 ─────────────────────────────────
 app.delete('/api/stories/:id', async (req, res) => {
   try {
-    // 음성 파일 삭제
     const { data } = await supabase.from('stories').select('voice_file').eq('id', req.params.id).single();
+    // Supabase Storage에서도 음성 파일 삭제
     if (data && data.voice_file) {
-      const fp = path.join(UPLOADS_DIR, data.voice_file);
-      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+      await supabase.storage.from('voices').remove([data.voice_file]);
     }
     const { error } = await supabase.from('stories').delete().eq('id', req.params.id);
     if (error) throw error;
@@ -147,12 +156,10 @@ app.delete('/api/stories/:id', async (req, res) => {
 app.delete('/api/stories', async (req, res) => {
   try {
     const { data } = await supabase.from('stories').select('voice_file');
-    (data || []).forEach(s => {
-      if (s.voice_file) {
-        const fp = path.join(UPLOADS_DIR, s.voice_file);
-        if (fs.existsSync(fp)) fs.unlinkSync(fp);
-      }
-    });
+    const files = (data || []).filter(s => s.voice_file).map(s => s.voice_file);
+    if (files.length > 0) {
+      await supabase.storage.from('voices').remove(files);
+    }
     const { error } = await supabase.from('stories').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     if (error) throw error;
     res.json({ success: true });
@@ -166,4 +173,5 @@ app.listen(PORT, () => {
   console.log(`📡  사연 보내기: http://localhost:${PORT}`);
   console.log(`🔐  관리자: http://localhost:${PORT}/admin`);
   console.log(`🗄️  Supabase 연결됨: ${SUPABASE_URL}`);
+  console.log(`📦  음성 파일: Supabase Storage (voices 버킷)`);
 });
