@@ -65,6 +65,9 @@ async function uploadToStorage(filePath, fileName) {
   return urlData.publicUrl;
 }
 
+// ─── DJ 비용 메모리 저장소 (서버 재시작 전까지 유지) ──
+const usageMemory = [];
+
 // ─── Claude 모델별 요금 (USD per 1M tokens) ────
 const CLAUDE_PRICING = {
   'claude-opus-4-5':       { input: 15.0,  output: 75.0  },
@@ -158,11 +161,12 @@ app.post('/api/dj/generate', async (req, res) => {
       res.write('data: [DONE]\n\n');
       res.end();
 
-      // 비용 계산 및 Supabase 저장
+      // 비용 계산
       if (inputTokens > 0 || outputTokens > 0) {
         const { inputCost, outputCost, totalCost } = calcCost(inputTokens, outputTokens, MODEL);
         const record = {
           id: uuidv4(),
+          created_at: new Date().toISOString(),
           model: MODEL,
           story_id: story_id || null,
           story_name: story_name || '알 수 없음',
@@ -173,12 +177,16 @@ app.post('/api/dj/generate', async (req, res) => {
           output_cost_usd: outputCost,
           total_cost_usd: totalCost,
         };
-        try {
-          await supabase.from('dj_usage').insert([record]);
-          console.log(`💰 DJ 생성 비용: $${totalCost.toFixed(6)} (in:${inputTokens} / out:${outputTokens})`);
-        } catch(e) {
-          console.error('dj_usage 저장 실패:', e.message);
-        }
+
+        // 1) 메모리에 항상 저장 (즉시, 신뢰성 높음)
+        usageMemory.unshift(record);
+        if (usageMemory.length > 500) usageMemory.pop();
+        console.log(`💰 DJ 생성 비용: $${totalCost.toFixed(6)} (in:${inputTokens} / out:${outputTokens})`);
+
+        // 2) Supabase에도 저장 시도 (실패해도 무시)
+        supabase.from('api_cost').insert([record]).then(({ error }) => {
+          if (error) console.warn('dj_usage Supabase 저장 실패 (무시):', error.message);
+        });
       }
     });
   });
@@ -196,21 +204,30 @@ app.post('/api/dj/generate', async (req, res) => {
 
 // ─── DJ 비용 통계 조회 ──────────────────────────
 app.get('/api/dj/usage', async (req, res) => {
+  // 메모리에 데이터 있으면 즉시 반환 (Supabase 불필요)
+  if (usageMemory.length > 0) {
+    const total_cost   = usageMemory.reduce((s, r) => s + (Number(r.total_cost_usd)  || 0), 0);
+    const total_input  = usageMemory.reduce((s, r) => s + (Number(r.input_tokens)    || 0), 0);
+    const total_output = usageMemory.reduce((s, r) => s + (Number(r.output_tokens)   || 0), 0);
+    return res.json({ records: usageMemory, total_cost, total_input, total_output, count: usageMemory.length, source: 'memory' });
+  }
+
+  // 메모리 비어있으면 Supabase 시도
   try {
     const { data, error } = await supabase
-      .from('dj_usage')
+      .from('api_cost')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(200);
     if (error) throw error;
 
-    const total_cost   = data.reduce((s, r) => s + (r.total_cost_usd || 0), 0);
-    const total_input  = data.reduce((s, r) => s + (r.input_tokens   || 0), 0);
-    const total_output = data.reduce((s, r) => s + (r.output_tokens  || 0), 0);
-
-    res.json({ records: data, total_cost, total_input, total_output, count: data.length });
+    const total_cost   = data.reduce((s, r) => s + (Number(r.total_cost_usd) || 0), 0);
+    const total_input  = data.reduce((s, r) => s + (Number(r.input_tokens)   || 0), 0);
+    const total_output = data.reduce((s, r) => s + (Number(r.output_tokens)  || 0), 0);
+    res.json({ records: data, total_cost, total_input, total_output, count: data.length, source: 'supabase' });
   } catch(err) {
-    res.status(500).json({ error: err.message });
+    // Supabase도 실패하면 빈 응답 (오류 아님)
+    res.json({ records: [], total_cost: 0, total_input: 0, total_output: 0, count: 0, source: 'none', error: err.message });
   }
 });
 
