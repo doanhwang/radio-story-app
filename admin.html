@@ -278,6 +278,7 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer;}
     <div class="nav-item active" onclick="showPage('dashboard',this)">📊 대시보드</div>
     <div class="nav-item" onclick="showPage('stories',this)">📋 사연 목록</div>
     <div class="nav-item" onclick="showPage('analysis',this)">🔍 분석</div>
+    <div class="nav-item" onclick="openTestPage()">🧪 통합 테스트</div>
     <div class="sidebar-footer">
       <button class="logout-btn" onclick="logout()">로그아웃</button>
     </div>
@@ -295,6 +296,7 @@ tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer;}
         <div class="action-btns">
           <button class="btn btn-cyan" onclick="loadAll()">🔄 새로고침</button>
           <button class="btn btn-ghost" onclick="downloadExcel()">📥 엑셀 다운로드</button>
+          <button class="btn btn-ghost" style="border-color:rgba(0,230,118,0.4);color:#00e676;" onclick="openTestPage()">🧪 통합 테스트</button>
         </div>
       </div>
       <div class="stats-grid">
@@ -407,6 +409,7 @@ function doLogin(){
     document.getElementById('pw-input').focus();
   }
 }
+function openTestPage(){ window.open("/test", "_blank"); }
 function logout(){
   isLoggedIn = false;
   document.getElementById('login-screen').style.display = 'flex';
