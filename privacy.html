@@ -57,6 +57,8 @@ p, li { font-size:0.9rem; color:#555; }
 
 <p style="margin-top:3rem; font-size:0.78rem; color:#aaa;">시행일: 2026년 3월 1일</p>
 
+<button class="back-btn" id="back-btn-bottom" style="margin-top:1.5rem;">← 돌아가기</button>
+
 <script>
 // URL에서 from 파라미터 읽어 돌아갈 앱 결정
 var params = new URLSearchParams(location.search);
@@ -65,6 +67,9 @@ var validTypes = ['self','parent','helper','care'];
 if(validTypes.indexOf(fromType) === -1) fromType = 'self';
 
 document.getElementById('back-btn').addEventListener('click', function(){
+  location.href = '/story?type=' + fromType;
+});
+document.getElementById('back-btn-bottom').addEventListener('click', function(){
   location.href = '/story?type=' + fromType;
 });
 </script>
