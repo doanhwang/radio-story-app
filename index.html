@@ -429,6 +429,46 @@ function toggleEmo(el){
 }
 
 let recognition=null;
+let recognizing=false;
+let accumulatedText='';
+
+function startSpeechRecognition(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return;
+
+  recognition = new SR();
+  recognition.lang = 'ko-KR';
+  recognition.continuous = false;      // 안드로이드 호환
+  recognition.interimResults = true;
+  recognizing = true;
+
+  recognition.onresult = (e) => {
+    let interim = '';
+    for(let i=e.resultIndex; i<e.results.length; i++){
+      if(e.results[i].isFinal){
+        accumulatedText += e.results[i][0].transcript;
+      } else {
+        interim = e.results[i][0].transcript;
+      }
+    }
+    document.getElementById('f-text').value = accumulatedText + interim;
+  };
+
+  recognition.onend = () => {
+    // 녹음 중이면 자동으로 재시작 (끊어서 반복)
+    if(recActive && recognizing){
+      try{ recognition.start(); }catch(e){}
+    }
+  };
+
+  recognition.onerror = (e) => {
+    if(e.error === 'no-speech' && recActive && recognizing){
+      try{ recognition.start(); }catch(err){}
+    }
+  };
+
+  try{ recognition.start(); }catch(e){}
+}
 
 async function toggleRec(){
   if(!recActive){
@@ -452,28 +492,9 @@ async function toggleRec(){
           String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
       },1000);
 
-      // 음성 → 텍스트 받아쓰기 시작
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if(SR){
-        recognition = new SR();
-        recognition.lang = 'ko-KR';
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        let finalText = document.getElementById('f-text').value;
-        recognition.onresult = (e) => {
-          let interim = '';
-          for(let i=e.resultIndex; i<e.results.length; i++){
-            if(e.results[i].isFinal){
-              finalText += e.results[i][0].transcript;
-            } else {
-              interim += e.results[i][0].transcript;
-            }
-          }
-          document.getElementById('f-text').value = finalText + interim;
-        };
-        recognition.onerror = () => {};
-        recognition.start();
-      }
+      // 받아쓰기 시작
+      accumulatedText = document.getElementById('f-text').value;
+      startSpeechRecognition();
 
     }catch(e){alert('마이크 접근 권한이 필요합니다.');}
   }else{
@@ -482,7 +503,8 @@ async function toggleRec(){
     document.getElementById('rec-label').textContent='녹음 시작';
     document.getElementById('rec-timer').style.display='none';
     // 받아쓰기 중지
-    if(recognition){ recognition.stop(); recognition=null; }
+    recognizing=false;
+    if(recognition){ try{recognition.stop();}catch(e){} recognition=null; }
   }
 }
 
