@@ -270,6 +270,90 @@ const TESTS = [
       return `마이크 권한: ${result.state}`;
     }
   },
+
+  // ─── 신규 기능 테스트 ─────────────────────────
+  {
+    id: 'story-types',
+    name: '멀티타입 앱 4개 응답 확인',
+    desc: '/story?type=self|parent|helper|care 페이지가 모두 정상 로드되는지 확인',
+    run: async (base) => {
+      const types = ['self', 'parent', 'helper', 'care'];
+      const results = [];
+      for(const t of types){
+        const res = await fetch(`${base}/story?type=${t}`, { signal: AbortSignal.timeout(8000) });
+        if(!res.ok) throw new Error(`type=${t} → HTTP ${res.status}`);
+        const html = await res.text();
+        if(!html.includes('TYPES')) throw new Error(`type=${t} → story.html 아닌 페이지 반환`);
+        results.push(t);
+      }
+      return `4개 타입 모두 응답 정상 (${results.join(', ')})`;
+    }
+  },
+  {
+    id: 'audience-type-save',
+    name: 'audience_type 필드 저장 확인',
+    desc: '사연 제출 시 audience_type이 DB에 함께 저장되는지 확인',
+    run: async (base) => {
+      const fd = new FormData();
+      fd.append('name', '타입테스트봇');
+      fd.append('text', `[자동테스트-audience_type] ${new Date().toLocaleString('ko-KR')}`);
+      fd.append('category', '✨ 기타');
+      fd.append('emotions', '[]');
+      fd.append('audience_type', 'parent');
+      const postRes = await fetch(`${base}/api/stories`, { method:'POST', body:fd, signal: AbortSignal.timeout(10000) });
+      if(!postRes.ok) throw new Error(`제출 실패 HTTP ${postRes.status}`);
+      const postData = await postRes.json();
+      if(!postData.success) throw new Error(postData.error || '제출 오류');
+      const id = postData.id;
+
+      await new Promise(r => setTimeout(r, 1000));
+      const listRes = await fetch(`${base}/api/stories?limit=10`, { signal: AbortSignal.timeout(8000) });
+      const list = await listRes.json();
+      const found = list.items.find(s => s.id === id);
+      if(!found) throw new Error('DB에서 사연을 찾을 수 없음');
+
+      // 정리
+      await fetch(`${base}/api/stories/${id}`, { method:'DELETE' });
+
+      const savedType = found.audience_type || '(필드 없음)';
+      if(savedType !== 'parent') throw new Error(`audience_type 불일치: 기대=parent, 실제=${savedType}`);
+      return `audience_type="parent" 저장 및 조회 확인 완료`;
+    }
+  },
+  {
+    id: 'story-html-content',
+    name: '타입별 UI 콘텐츠 분리 확인',
+    desc: 'self/parent/helper/care 각 타입이 서로 다른 앱 이름을 렌더링하는지 HTML 소스로 확인',
+    run: async (base) => {
+      const checks = [
+        { type: 'self',   keyword: '나의 이야기' },
+        { type: 'parent', keyword: '우리 아이 이야기' },
+        { type: 'helper', keyword: '현장의 목소리' },
+        { type: 'care',   keyword: '곁에 있습니다' },
+      ];
+      const failed = [];
+      for(const c of checks){
+        const res = await fetch(`${base}/story?type=${c.type}`, { signal: AbortSignal.timeout(8000) });
+        const html = await res.text();
+        if(!html.includes(c.keyword)) failed.push(`${c.type} (키워드 누락: ${c.keyword})`);
+      }
+      if(failed.length) throw new Error(`콘텐츠 누락: ${failed.join(' / ')}`);
+      return '4개 타입 앱 이름 모두 소스 내 확인됨';
+    }
+  },
+  {
+    id: 'install-popup-daily',
+    name: '설치 팝업 하루 1회 로직 확인',
+    desc: 'localStorage에 날짜 기반 install-skip-date 키가 사용되는지 소스 확인',
+    run: async (base) => {
+      const res = await fetch(`${base}/story?type=self`, { signal: AbortSignal.timeout(8000) });
+      const html = await res.text();
+      if(!html.includes('install-skip-date')) throw new Error('install-skip-date 키 없음 — 영구 차단 방식 사용 중');
+      if(!html.includes('toDateString')) throw new Error('날짜 비교 로직(toDateString) 없음');
+      if(!html.includes('오늘은 그만 보기')) throw new Error('버튼 텍스트 "오늘은 그만 보기" 없음');
+      return '하루 1회 날짜 비교 로직 및 버튼 텍스트 확인 완료';
+    }
+  },
 ];
 
 let results = {};
