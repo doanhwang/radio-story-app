@@ -284,9 +284,37 @@ function renderLetter(d){
         <button class="share-btn" onclick="copyLink()">🔗 링크 복사</button>
         <button class="share-btn" onclick="shareNative()">📤 공유하기</button>
       </div>
+
+      <!-- 전이 액션 버튼 -->
+      <div id="action-bar" style="margin-top:1.2rem;">
+        <div style="font-size:0.75rem;color:#999;margin-bottom:0.6rem;text-align:center;">이 방송이 도움이 됐나요?</div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <button class="share-btn" id="btn-intent" onclick="sendAction('INTENT')" style="background:#1a2a1a;border-color:#00c853;color:#00c853;">
+            💪 나도 해볼게요
+          </button>
+          <button class="share-btn" id="btn-done" onclick="openDoneModal()" style="background:#1a1a2a;border-color:#7c4dff;color:#7c4dff;">
+            ✅ 실제로 했어요
+          </button>
+        </div>
+      </div>
+
+      <!-- DONE 증빙 모달 -->
+      <div id="done-modal" style="display:none;margin-top:1rem;background:#111;border:1px solid #333;border-radius:10px;padding:1rem;">
+        <div style="font-size:0.8rem;color:#ccc;margin-bottom:0.6rem;">어떻게 실행하셨나요? (선택)</div>
+        <textarea id="done-text" placeholder="예: 구청에 민원 접수했어요 / 활동지원 시간 늘려달라고 요청했어요..."
+          style="width:100%;background:#1a1a1a;border:1px solid #333;color:#eee;padding:0.6rem;border-radius:6px;
+          font-size:0.78rem;resize:none;height:80px;outline:none;"></textarea>
+        <div style="display:flex;gap:0.5rem;margin-top:0.6rem;">
+          <button onclick="document.getElementById('done-modal').style.display='none'"
+            style="flex:1;padding:0.5rem;background:#222;border:1px solid #444;color:#999;border-radius:6px;cursor:pointer;font-size:0.78rem;">취소</button>
+          <button onclick="sendDone()"
+            style="flex:1;padding:0.5rem;background:#7c4dff;border:none;color:#fff;border-radius:6px;cursor:pointer;font-weight:700;font-size:0.78rem;">✅ 기록하기</button>
+        </div>
+      </div>
     </div>`;
 
   window._shareUrl = location.href;
+  sendEcho(d.id);
 }
 
 function renderBroadcast(text, fromName, toName){
@@ -357,7 +385,48 @@ function copyLink(){
   navigator.clipboard.writeText(location.href)
     .then(() => alert('링크가 복사됐습니다!'));
 }
+// ── 전이 이벤트 전송 ──
+const SESSION_ID = Math.random().toString(36).slice(2);
+
+async function sendAction(type, meta={}) {
+  try {
+    await fetch('/api/events', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-session-id':SESSION_ID},
+      body: JSON.stringify({
+        event_type: type,
+        letter_id: window._letterId || null,
+        session_id: SESSION_ID,
+        meta
+      })
+    });
+    if(type === 'INTENT') {
+      const btn = document.getElementById('btn-intent');
+      if(btn){ btn.textContent = '💪 참여 의향 기록됨!'; btn.disabled = true; btn.style.opacity='0.6'; }
+    }
+  } catch(e) {}
+}
+
+function openDoneModal() {
+  document.getElementById('done-modal').style.display = 'block';
+}
+
+async function sendDone() {
+  const text = document.getElementById('done-text').value.trim();
+  await sendAction('DONE', { description: text });
+  document.getElementById('done-modal').style.display = 'none';
+  const btn = document.getElementById('btn-done');
+  if(btn){ btn.textContent = '✅ 실행 기록됨!'; btn.disabled = true; btn.style.opacity='0.6'; }
+}
+
+// 페이지 로드 시 ECHO 이벤트 전송 (방송 청취)
+function sendEcho(letterId) {
+  window._letterId = letterId;
+  sendAction('ECHO', { source: 'letter-view' });
+}
+
 function shareNative(){
+  sendAction('SHARE', { channel: 'native' });
   if(navigator.share){
     navigator.share({ title:'💌 라디오 편지', url: location.href });
   } else {
