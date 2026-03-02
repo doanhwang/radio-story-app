@@ -396,21 +396,54 @@ body {
 
     <!-- ── 좌: 사연 목록 ── -->
     <div class="panel-left">
-      <div class="list-toolbar">
-        <input class="search-box" id="search-box" placeholder="🔍 사연 검색..." oninput="renderList()">
-        <div class="filter-row">
-          <span class="fchip on" data-f="전체" onclick="setFilter(this)">전체</span>
-          <span class="fchip" data-f="self" onclick="setFilter(this)">나의이야기</span>
-          <span class="fchip" data-f="parent" onclick="setFilter(this)">부모</span>
-          <span class="fchip" data-f="helper" onclick="setFilter(this)">지원사</span>
-          <span class="fchip" data-f="care" onclick="setFilter(this)">돌봄</span>
+      <!-- 탭 -->
+      <div style="display:flex; border-bottom:1px solid var(--border);">
+        <button id="tab-story" onclick="switchTab('story')"
+          style="flex:1;padding:0.7rem;border:none;background:var(--gold-pale);
+          color:var(--gold);font-family:'Noto Sans KR',sans-serif;font-size:0.78rem;
+          font-weight:700;cursor:pointer;border-bottom:2px solid var(--gold);">
+          📻 사연 (기존)
+        </button>
+        <button id="tab-letter" onclick="switchTab('letter')"
+          style="flex:1;padding:0.7rem;border:none;background:none;
+          color:var(--muted);font-family:'Noto Sans KR',sans-serif;font-size:0.78rem;
+          cursor:pointer;border-bottom:2px solid transparent;">
+          💌 편지 (A→B)
+        </button>
+      </div>
+
+      <!-- 사연 탭 -->
+      <div id="panel-story">
+        <div class="list-toolbar">
+          <input class="search-box" id="search-box" placeholder="🔍 사연 검색..." oninput="renderList()">
+          <div class="filter-row">
+            <span class="fchip on" data-f="전체" onclick="setFilter(this)">전체</span>
+            <span class="fchip" data-f="self" onclick="setFilter(this)">나의이야기</span>
+            <span class="fchip" data-f="parent" onclick="setFilter(this)">부모</span>
+            <span class="fchip" data-f="helper" onclick="setFilter(this)">지원사</span>
+            <span class="fchip" data-f="care" onclick="setFilter(this)">돌봄</span>
+          </div>
+        </div>
+        <div class="panel-title">
+          <span>사연 목록</span>
+          <span id="story-count-label">—</span>
         </div>
       </div>
-      <div class="panel-title">
-        <span>사연 목록</span>
-        <span id="story-count-label">—</span>
+
+      <!-- 편지 탭 -->
+      <div id="panel-letter" style="display:none;">
+        <div class="list-toolbar">
+          <input class="search-box" id="letter-search" placeholder="🔍 편지 검색..." oninput="renderLetterList()">
+        </div>
+        <div class="panel-title">
+          <span>편지 목록</span>
+          <span id="letter-count-label">—</span>
+        </div>
       </div>
       <div class="story-list" id="story-list">
+        <div class="empty-list">⏳ 불러오는 중...</div>
+      </div>
+      <div class="story-list" id="letter-list" style="display:none;">
         <div class="empty-list">⏳ 불러오는 중...</div>
       </div>
     </div>
@@ -701,6 +734,99 @@ let allStories = [];
 let selectedStory = null;
 let activeFilter = '전체';
 
+// ── 탭 전환 ───────────────────────────────────
+let currentTab = 'story';
+let allLetters = [];
+
+function switchTab(tab){
+  currentTab = tab;
+  const isStory = tab === 'story';
+
+  document.getElementById('panel-story').style.display = isStory ? 'block' : 'none';
+  document.getElementById('panel-letter').style.display = isStory ? 'none' : 'block';
+  document.getElementById('story-list').style.display  = isStory ? '' : 'none';
+  document.getElementById('letter-list').style.display = isStory ? 'none' : '';
+
+  const tabStory  = document.getElementById('tab-story');
+  const tabLetter = document.getElementById('tab-letter');
+  tabStory.style.background   = isStory ? 'var(--gold-pale)' : 'none';
+  tabStory.style.color        = isStory ? 'var(--gold)' : 'var(--muted)';
+  tabStory.style.borderBottom = isStory ? '2px solid var(--gold)' : '2px solid transparent';
+  tabLetter.style.background  = isStory ? 'none' : 'rgba(200,98,42,0.06)';
+  tabLetter.style.color       = isStory ? 'var(--muted)' : '#c8622a';
+  tabLetter.style.borderBottom= isStory ? '2px solid transparent' : '2px solid #c8622a';
+
+  if(!isStory && !allLetters.length) loadLetters();
+}
+
+async function loadLetters(){
+  try {
+    const res = await fetch('/api/letters');
+    const d = await res.json();
+    allLetters = d.items || [];
+    document.getElementById('letter-count-label').textContent = allLetters.length + '건';
+    renderLetterList();
+  } catch(e){ showToast('❗ 편지 로드 실패'); }
+}
+
+function renderLetterList(){
+  const q = (document.getElementById('letter-search')?.value || '').toLowerCase();
+  let list = allLetters;
+  if(q) list = list.filter(l =>
+    (l.from_name||'').toLowerCase().includes(q) ||
+    (l.to_name||'').toLowerCase().includes(q) ||
+    (l.text||'').toLowerCase().includes(q)
+  );
+
+  const el = document.getElementById('letter-list');
+  if(!list.length){ el.innerHTML = '<div class="empty-list">📭 편지가 없습니다</div>'; return; }
+
+  const relMap = { family:'가족', friend:'친구/지인', lover:'연인/배우자', anyone:'누구에게나' };
+  el.innerHTML = list.map(l => {
+    const hasBroadcast = !!l.broadcast_text;
+    const isSelected = selectedStory && selectedStory.id === l.id && selectedStory._isLetter;
+    return `<div class="story-card${isSelected?' selected':''}" onclick="selectLetter('${l.id}')">
+      <div class="story-card-header">
+        <span class="story-name">${l.from_name} → ${l.to_name}</span>
+        <span class="story-type-badge t-care">${relMap[l.relation]||'기타'}</span>
+      </div>
+      <div class="story-preview">${l.text}</div>
+      <div class="story-meta">
+        ${hasBroadcast?'<span class="tag-mini" style="color:#50e8a0;">📻 방송완료</span>':'<span class="tag-mini">미방송</span>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectLetter(id){
+  const letter = allLetters.find(l => l.id === id);
+  if(!letter) return;
+
+  // story 형태로 변환해서 selectedStory에 세팅
+  selectedStory = {
+    id: letter.id,
+    name: letter.from_name + ' → ' + letter.to_name,
+    text: letter.text,
+    category: letter.relation,
+    emotions: letter.emotions || [],
+    audience_type: 'letter',
+    _isLetter: true,
+    _letter: letter,
+  };
+
+  renderLetterList();
+  document.getElementById('studio-empty').style.display = 'none';
+  document.getElementById('studio-content').style.display = 'block';
+  document.getElementById('broadcast-script').style.display = 'none';
+  document.getElementById('lyrics-block').style.display = 'none';
+
+  document.getElementById('sel-name').textContent = letter.from_name + '이(가) ' + letter.to_name + '에게 보내는 편지';
+  document.getElementById('sel-text').textContent = letter.text;
+  const emos = (letter.emotions||[]).map(e=>`<span class="tag-mini">${e}</span>`).join('');
+  document.getElementById('sel-meta').innerHTML = `<span class="tag-mini">💌 편지</span>` + emos;
+  document.getElementById('studio-panel').scrollTop = 0;
+}
+
 async function loadStories(){
   try {
     const res = await fetch('/api/stories?limit=200');
@@ -882,6 +1008,18 @@ async function generateBroadcast(){
     fill.style.width = '100%';
     setTimeout(() => { bar.style.display = 'none'; fill.style.width = '0%'; }, 800);
 
+    // 편지인 경우 방송 텍스트 저장
+    if(selectedStory?._isLetter && selectedStory.id){
+      try {
+        await fetch('/api/letters/' + selectedStory.id + '/broadcast', {
+          method:'PATCH',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ broadcast_text: fullText })
+        });
+        showToast('✅ 편지에 방송이 저장됐습니다!');
+      } catch(e){ console.warn('편지 방송 저장 실패:', e); }
+    }
+
     // 비용 조회 및 표시
     await loadUsageCost();
 
@@ -904,16 +1042,22 @@ async function generateBroadcast(){
 function buildPrompt(story, djName, tone, lang, genre){
   const audienceMap = {
     self: '장애인 당사자', parent: '장애인 자녀를 둔 부모',
-    helper: '장애인 활동지원사', care: '치매 부모를 모시는 자녀'
+    helper: '장애인 활동지원사', care: '치매 부모를 모시는 자녀',
+    letter: '소중한 사람에게 편지를 보내는 분'
   };
   const audience = audienceMap[story.audience_type || 'self'] || '청취자';
+
+  // 편지 타입이면 받는 사람 정보 추가
+  const letterExtra = story._isLetter
+    ? `\n- 보내는 사람: ${story._letter.from_name}\n- 받는 사람: ${story._letter.to_name}\n- 관계: ${{family:'가족',friend:'친구/지인',lover:'연인/배우자',anyone:'소중한 사람'}[story._letter.relation]||'소중한 사람'}`
+    : '';
   const emotions = (story.emotions||[]).join(', ') || '없음';
   const category = story.category || '기타';
 
   return `당신은 라디오 DJ ${djName}입니다. 아래 사연을 바탕으로 완전한 라디오 방송 프로그램 스크립트를 작성하세요.
 
 [사연 정보]
-- 보낸 분: ${story.name}
+- 보낸 분: ${story.name}${letterExtra}
 - 대상 청취자 그룹: ${audience}
 - 카테고리: ${category}
 - 감정 태그: ${emotions}
