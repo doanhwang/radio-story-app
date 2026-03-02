@@ -730,7 +730,6 @@ app.post('/api/sim/upload-stories', memUpload.single('file'), async (req, res) =
           audience_type: audienceMap[cat] || 'self',
           voice_url: null,
           input_method: 'text',
-          persona_id: id,
           created_at,
         };
 
