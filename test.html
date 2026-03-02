@@ -59,6 +59,30 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .log-info{color:var(--cyan);}
 .log-warn{color:var(--amber);}
 
+/* 진행률 바 */
+.progress-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.8rem 1rem;margin-bottom:1rem;display:none;}
+.progress-label{font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:0.4rem;display:flex;justify-content:space-between;}
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:3px;transition:width 0.3s;}
+
+/* 그룹 탭 */
+.group-tabs{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1rem;}
+.gtab{padding:0.35rem 0.8rem;border:1px solid var(--border);border-radius:6px;
+  font-size:0.75rem;color:var(--muted);cursor:pointer;transition:all 0.15s;
+  font-family:'DM Mono',monospace;background:var(--card);}
+.gtab:hover{border-color:var(--cyan);color:var(--cyan);}
+.gtab.on{background:var(--cyan);border-color:var(--cyan);color:#000;font-weight:700;}
+.gtab.pass-all{border-color:var(--green)!important;}
+
+/* 그룹 헤더 */
+.group-header{font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.15em;
+  text-transform:uppercase;color:var(--muted);padding:0.5rem 0.2rem;
+  margin-top:1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.6rem;}
+.group-header .gh-count{color:var(--cyan);font-weight:700;}
+
+/* 요약 카드 개선 */
+.sum-card .sub{font-size:0.68rem;color:var(--muted);margin-top:0.2rem;}
+
 @media(max-width:600px){
   .summary{grid-template-columns:repeat(2,1fr);}
   .target{flex-direction:column;align-items:stretch;}
@@ -79,10 +103,27 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 </div>
 
 <div class="summary">
-  <div class="sum-card"><div class="n total" id="s-total">0</div><div class="l">전체</div></div>
-  <div class="sum-card"><div class="n pass" id="s-pass">0</div><div class="l">통과 ✅</div></div>
-  <div class="sum-card"><div class="n fail" id="s-fail">0</div><div class="l">실패 ❌</div></div>
-  <div class="sum-card"><div class="n skip" id="s-skip">0</div><div class="l">대기 ⏳</div></div>
+  <div class="sum-card"><div class="n total" id="s-total">0</div><div class="l">전체</div><div class="sub" id="s-groups">그룹 5개</div></div>
+  <div class="sum-card"><div class="n pass" id="s-pass">0</div><div class="l">통과 ✅</div><div class="sub" id="s-rate">—</div></div>
+  <div class="sum-card"><div class="n fail" id="s-fail">0</div><div class="l">실패 ❌</div><div class="sub" id="s-fail-groups">—</div></div>
+  <div class="sum-card"><div class="n skip" id="s-skip">0</div><div class="l">대기 ⏳</div><div class="sub" id="s-elapsed">—</div></div>
+</div>
+
+<div class="progress-wrap" id="progress-wrap">
+  <div class="progress-label">
+    <span id="progress-label">실행 중...</span>
+    <span id="progress-pct">0%</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+</div>
+
+<div class="group-tabs" id="group-tabs">
+  <div class="gtab on" data-g="전체" onclick="filterGroup(this)">전체</div>
+  <div class="gtab" data-g="기존 앱" onclick="filterGroup(this)">기존 앱</div>
+  <div class="gtab" data-g="편지 A→B" onclick="filterGroup(this)">💌 편지 A→B</div>
+  <div class="gtab" data-g="Data Moat" onclick="filterGroup(this)">📊 Data Moat</div>
+  <div class="gtab" data-g="DJ 스튜디오" onclick="filterGroup(this)">🎙️ DJ 스튜디오</div>
+  <div class="gtab" data-g="인프라" onclick="filterGroup(this)">🔧 인프라</div>
 </div>
 
 <div class="test-list" id="test-list"></div>
@@ -96,6 +137,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 const TESTS = [
   {
     id: 'server',
+    group: '기존 앱',
     name: '서버 응답 확인',
     desc: '서버가 정상적으로 실행 중인지 확인',
     run: async (base) => {
@@ -106,6 +148,7 @@ const TESTS = [
   },
   {
     id: 'admin',
+    group: '기존 앱',
     name: '관리자 페이지 응답',
     desc: '/admin 페이지가 정상 로드되는지 확인',
     run: async (base) => {
@@ -116,6 +159,7 @@ const TESTS = [
   },
   {
     id: 'stats',
+    group: '기존 앱',
     name: 'API 통계 조회',
     desc: '/api/stats 엔드포인트 정상 응답 확인',
     run: async (base) => {
@@ -128,6 +172,7 @@ const TESTS = [
   },
   {
     id: 'stories-get',
+    group: '기존 앱',
     name: 'API 사연 목록 조회',
     desc: '/api/stories 엔드포인트 정상 응답 확인',
     run: async (base) => {
@@ -140,6 +185,7 @@ const TESTS = [
   },
   {
     id: 'story-post',
+    group: '기존 앱',
     name: 'API 텍스트 사연 제출',
     desc: '텍스트 사연을 실제로 제출하고 저장 확인',
     run: async (base) => {
@@ -158,6 +204,7 @@ const TESTS = [
   },
   {
     id: 'story-verify',
+    group: '기존 앱',
     name: 'DB 저장 확인',
     desc: '제출한 사연이 DB에 실제로 저장됐는지 확인',
     run: async (base) => {
@@ -172,6 +219,7 @@ const TESTS = [
   },
   {
     id: 'story-delete',
+    group: '기존 앱',
     name: '테스트 사연 삭제',
     desc: '테스트용 사연을 정리 (삭제 API 확인)',
     run: async (base) => {
@@ -185,6 +233,7 @@ const TESTS = [
   },
   {
     id: 'supabase',
+    group: '기존 앱',
     name: 'Supabase 연결 상태',
     desc: 'DB 응답 속도 및 연결 안정성 확인',
     run: async (base) => {
@@ -198,6 +247,7 @@ const TESTS = [
   },
   {
     id: 'voice-upload',
+    group: '기존 앱',
     name: 'Supabase Storage 음성 업로드',
     desc: '음성 파일을 실제로 업로드하고 URL 확인',
     run: async (base) => {
@@ -251,6 +301,7 @@ const TESTS = [
   },
   {
     id: 'speech',
+    group: '기존 앱',
     name: '브라우저 받아쓰기 지원',
     desc: 'SpeechRecognition API 지원 여부 확인',
     run: async (base) => {
@@ -261,6 +312,7 @@ const TESTS = [
   },
   {
     id: 'mic',
+    group: '기존 앱',
     name: '마이크 권한 확인',
     desc: '마이크 접근 권한이 허용돼 있는지 확인',
     run: async (base) => {
@@ -274,6 +326,7 @@ const TESTS = [
   // ─── 신규 기능 테스트 ─────────────────────────
   {
     id: 'story-types',
+    group: '기존 앱',
     name: '멀티타입 앱 4개 응답 확인',
     desc: '/story?type=self|parent|helper|care 페이지가 모두 정상 로드되는지 확인',
     run: async (base) => {
@@ -291,6 +344,7 @@ const TESTS = [
   },
   {
     id: 'audience-type-save',
+    group: '기존 앱',
     name: 'audience_type 필드 저장 확인',
     desc: '사연 제출 시 audience_type이 DB에 함께 저장되는지 확인',
     run: async (base) => {
@@ -322,6 +376,7 @@ const TESTS = [
   },
   {
     id: 'story-html-content',
+    group: '기존 앱',
     name: '타입별 UI 콘텐츠 분리 확인',
     desc: 'self/parent/helper/care 각 타입이 서로 다른 앱 이름을 렌더링하는지 HTML 소스로 확인',
     run: async (base) => {
@@ -345,13 +400,294 @@ const TESTS = [
     id: 'install-popup-daily',
     name: '설치 팝업 하루 1회 로직 확인',
     desc: 'localStorage에 날짜 기반 install-skip-date 키가 사용되는지 소스 확인',
+    group: '기존 앱',
     run: async (base) => {
       const res = await fetch(`${base}/story?type=self`, { signal: AbortSignal.timeout(8000) });
       const html = await res.text();
-      if(!html.includes('install-skip-date')) throw new Error('install-skip-date 키 없음 — 영구 차단 방식 사용 중');
-      if(!html.includes('toDateString')) throw new Error('날짜 비교 로직(toDateString) 없음');
-      if(!html.includes('오늘은 그만 보기')) throw new Error('버튼 텍스트 "오늘은 그만 보기" 없음');
-      return '하루 1회 날짜 비교 로직 및 버튼 텍스트 확인 완료';
+      if(!html.includes('install-skip-date')) throw new Error('install-skip-date 키 없음');
+      if(!html.includes('toDateString')) throw new Error('날짜 비교 로직 없음');
+      if(!html.includes('오늘은 그만 보기')) throw new Error('버튼 텍스트 없음');
+      return '하루 1회 날짜 비교 로직 확인 완료';
+    }
+  },
+
+  // ── 💌 편지 A→B ─────────────────────────────────
+  { id:'letter-page', name:'편지 작성 페이지 응답', group:'편지 A→B',
+    desc:'/letter 페이지 정상 로드 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/letter`,{signal:AbortSignal.timeout(8000)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html=await res.text();
+      if(!html.includes('마음을 전해요')) throw new Error('페이지 타이틀 없음');
+      return `HTTP ${res.status} 정상`;
+    }
+  },
+  { id:'letter-post', name:'편지 제출 API', group:'편지 A→B',
+    desc:'POST /api/letters — 저장 및 ID 반환 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/api/letters`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({from_name:'테스트봇A',to_name:'테스트봇B',
+          from_phone:'010-0000-0001',to_phone:'010-0000-0002',
+          title:'[자동테스트]',text:`[자동테스트] ${new Date().toISOString()}`,
+          relation:'friend',emotions:['감사','응원']}),
+        signal:AbortSignal.timeout(10000)
+      });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d=await res.json();
+      if(!d.success||!d.id) throw new Error(d.error||'편지 저장 실패');
+      window._testLetterId=d.id;
+      return `편지 ID: ${d.id.slice(0,8)}...`;
+    }
+  },
+  { id:'letter-get', name:'편지 조회 API', group:'편지 A→B',
+    desc:'GET /api/letters/:id — 내용/관계/감정 확인',
+    run: async(base)=>{
+      if(!window._testLetterId) throw new Error('이전 테스트 실패');
+      await new Promise(r=>setTimeout(r,800));
+      const res=await fetch(`${base}/api/letters/${window._testLetterId}`,{signal:AbortSignal.timeout(8000)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d=await res.json();
+      if(d.from_name!=='테스트봇A') throw new Error(`from_name 불일치: ${d.from_name}`);
+      if(d.relation!=='friend') throw new Error(`relation 불일치: ${d.relation}`);
+      if(!Array.isArray(d.emotions)||!d.emotions.includes('감사')) throw new Error('emotions 오류');
+      return `${d.from_name}→${d.to_name} / 관계:${d.relation} / 감정:${d.emotions.join(',')}`;
+    }
+  },
+  { id:'letter-phone', name:'전화번호 저장 확인', group:'편지 A→B',
+    desc:'from_phone / to_phone 필드 DB 저장 확인 (migration 체크)',
+    run: async(base)=>{
+      if(!window._testLetterId) throw new Error('이전 테스트 실패');
+      const res=await fetch(`${base}/api/letters/${window._testLetterId}`,{signal:AbortSignal.timeout(8000)});
+      const d=await res.json();
+      if(!d.from_phone) throw new Error('from_phone 없음 — migration_letters.sql 미실행?');
+      if(!d.to_phone) throw new Error('to_phone 없음');
+      return `발신:${d.from_phone} / 수신:${d.to_phone}`;
+    }
+  },
+  { id:'letter-view-page', name:'편지 수신 페이지', group:'편지 A→B',
+    desc:'/letter/:id 수신 페이지 정상 로드 확인',
+    run: async(base)=>{
+      if(!window._testLetterId) throw new Error('이전 테스트 실패');
+      const res=await fetch(`${base}/letter/${window._testLetterId}`,{signal:AbortSignal.timeout(8000)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html=await res.text();
+      if(!html.includes('라디오 편지')) throw new Error('수신 페이지 타이틀 없음');
+      return `수신 페이지 정상`;
+    }
+  },
+  { id:'letter-list', name:'편지 목록 API', group:'편지 A→B',
+    desc:'GET /api/letters — DJ 스튜디오 연동용 목록 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/api/letters`,{signal:AbortSignal.timeout(8000)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d=await res.json();
+      if(typeof d.total!=='number'||!Array.isArray(d.items)) throw new Error('응답 형식 오류');
+      const found=d.items.find(l=>l.id===window._testLetterId);
+      if(!found) throw new Error('방금 저장한 편지가 목록에 없음');
+      return `편지 목록 ${d.total}건 — 테스트 편지 확인`;
+    }
+  },
+  { id:'letter-broadcast', name:'편지 방송 저장 API', group:'편지 A→B',
+    desc:'PATCH /api/letters/:id/broadcast — DJ 방송 연동 저장 확인',
+    run: async(base)=>{
+      if(!window._testLetterId) throw new Error('이전 테스트 실패');
+      const script='[SECTION:opening]테스트 오프닝[/SECTION]';
+      const res=await fetch(`${base}/api/letters/${window._testLetterId}/broadcast`,{
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({broadcast_text:script}), signal:AbortSignal.timeout(8000)
+      });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d=await res.json();
+      if(!d.success) throw new Error('저장 실패');
+      const check=await fetch(`${base}/api/letters/${window._testLetterId}`);
+      const letter=await check.json();
+      if(!letter.broadcast_text) throw new Error('broadcast_text 미저장');
+      return '방송 텍스트 저장 및 확인 완료';
+    }
+  },
+
+  // ── 📊 Data Moat API ─────────────────────────────
+  { id:'data-page', name:'Data Moat 대시보드 페이지', group:'Data Moat',
+    desc:'/data 페이지 정상 로드 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/data`,{signal:AbortSignal.timeout(8000)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html=await res.text();
+      if(!html.includes('BLOSSOM DATA')) throw new Error('대시보드 타이틀 없음');
+      return `HTTP ${res.status} 정상`;
+    }
+  },
+  { id:'data-overview', name:'분석 API 응답 구조', group:'Data Moat',
+    desc:'GET /api/data/overview — 8개 필드 구조 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/api/data/overview`,{signal:AbortSignal.timeout(15000)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d=await res.json();
+      const required=['summary','emotion_distribution','audience_distribution','genre_distribution','tone_distribution','daily_submissions','top_keywords','recent_broadcasts'];
+      const missing=required.filter(k=>!(k in d));
+      if(missing.length) throw new Error(`누락: ${missing.join(',')}`);
+      const s=d.summary;
+      if(typeof s.total_stories!=='number') throw new Error('summary.total_stories 없음');
+      if(typeof s.conversion_rate==='undefined') throw new Error('conversion_rate 없음');
+      return `사연${s.total_stories}건/방송${s.total_broadcasts}건/전환율${s.conversion_rate}%/감정${d.emotion_distribution.length}종`;
+    }
+  },
+  { id:'data-emotion', name:'감정 분포 데이터', group:'Data Moat',
+    desc:'emotion_distribution name/count 구조 + 내림차순 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/api/data/overview`,{signal:AbortSignal.timeout(15000)});
+      const d=await res.json();
+      const dist=d.emotion_distribution;
+      if(!Array.isArray(dist)) throw new Error('배열 아님');
+      if(dist.length>0){
+        if(!dist[0].name||typeof dist[0].count==='undefined') throw new Error('name/count 구조 오류');
+        return `감정 ${dist.length}종 — 최다: "${dist[0].name}"(${dist[0].count}건)`;
+      }
+      return '감정 데이터 없음 (사연 제출 후 재확인)';
+    }
+  },
+  { id:'data-timeseries', name:'시계열 트렌드 데이터', group:'Data Moat',
+    desc:'daily_submissions date/count + 오름차순 정렬 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/api/data/overview`,{signal:AbortSignal.timeout(15000)});
+      const d=await res.json();
+      const daily=d.daily_submissions;
+      if(!Array.isArray(daily)) throw new Error('배열 아님');
+      if(daily.length>0){
+        if(!daily[0].date||typeof daily[0].count!=='number') throw new Error('date/count 구조 오류');
+        const dates=daily.map(x=>x.date);
+        if(JSON.stringify(dates)!==JSON.stringify([...dates].sort())) throw new Error('날짜 오름차순 정렬 오류');
+        return `${daily.length}일치 — ${daily[0].date}~${daily[daily.length-1].date}`;
+      }
+      return '시계열 데이터 없음 (사연 제출 후 재확인)';
+    }
+  },
+  { id:'data-keywords', name:'키워드 분석 데이터', group:'Data Moat',
+    desc:'top_keywords word/count 구조 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/api/data/overview`,{signal:AbortSignal.timeout(15000)});
+      const d=await res.json();
+      const kws=d.top_keywords;
+      if(!Array.isArray(kws)) throw new Error('배열 아님');
+      if(kws.length>0){
+        if(!kws[0].word||typeof kws[0].count!=='number') throw new Error('word/count 구조 오류');
+        return `키워드 ${kws.length}개 — 최다: "${kws[0].word}"(${kws[0].count}회)`;
+      }
+      return '키워드 데이터 없음 (사연 제출 후 재확인)';
+    }
+  },
+  { id:'data-export', name:'LLM 데이터셋 Export', group:'Data Moat',
+    desc:'GET /api/data/export/dataset — JSONL input/output 구조 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/api/data/export/dataset`,{signal:AbortSignal.timeout(15000)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text=await res.text();
+      if(!text.trim()) return 'export API 정상 — 0건 (방송 생성 후 재확인)';
+      const lines=text.trim().split('\n').filter(Boolean);
+      const first=JSON.parse(lines[0]);
+      if(!first.input||!first.output) throw new Error('input/output 구조 오류');
+      return `JSONL ${lines.length}건 — input/output 구조 확인`;
+    }
+  },
+
+  // ── 🎙️ DJ 스튜디오 ──────────────────────────────
+  { id:'dj-page', name:'DJ 스튜디오 페이지', group:'DJ 스튜디오',
+    desc:'/dj 페이지 정상 로드 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/dj`,{signal:AbortSignal.timeout(8000)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return `HTTP ${res.status} 정상`;
+    }
+  },
+  { id:'dj-usage', name:'DJ 비용 통계 API', group:'DJ 스튜디오',
+    desc:'GET /api/dj/usage — records/count/total_cost 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/api/dj/usage`,{signal:AbortSignal.timeout(10000)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d=await res.json();
+      if(typeof d.count==='undefined') throw new Error('count 없음');
+      if(typeof d.total_cost==='undefined') throw new Error('total_cost 없음');
+      if(!Array.isArray(d.records)) throw new Error('records 배열 없음');
+      if(d.records.length>0){
+        const rec=d.records[0];
+        const missing=['story_text','dj_tone','music_genre','detected_emotions'].filter(f=>!(f in rec));
+        if(missing.length) return `⚠️ 구조화 필드 누락: ${missing.join(',')} — migration_data_moat.sql 미실행?`;
+        return `방송${d.count}건 / $${Number(d.total_cost).toFixed(4)} / 구조화 필드 확인`;
+      }
+      return `API 정상 — 방송 ${d.count}건`;
+    }
+  },
+  { id:'dj-letter-tab', name:'DJ 편지 탭 연동 확인', group:'DJ 스튜디오',
+    desc:'dj.html에 편지 탭/탭전환/편지선택/방송저장 코드 확인',
+    run: async(base)=>{
+      const res=await fetch(`${base}/dj`,{signal:AbortSignal.timeout(8000)});
+      const html=await res.text();
+      const checks=[['tab-letter','편지 탭'],['switchTab','탭 전환 함수'],['selectLetter','편지 선택 함수'],['broadcast_text','방송 저장 연동']];
+      const missing=checks.filter(([k])=>!html.includes(k)).map(([,l])=>l);
+      if(missing.length) throw new Error(`누락: ${missing.join(', ')}`);
+      return '4개 항목 모두 확인 (편지탭/탭전환/편지선택/방송저장)';
+    }
+  },
+
+  // ── 🔧 인프라 헬스체크 ───────────────────────────
+  { id:'all-pages', name:'전체 페이지 일괄 응답', group:'인프라',
+    desc:'/, /admin, /story, /dj, /letter, /data, /privacy 7개 HTTP 200',
+    run: async(base)=>{
+      const pages=['/','/admin','/story?type=self','/dj','/letter','/data','/privacy'];
+      const failed=[];
+      for(const p of pages){
+        try{
+          const res=await fetch(`${base}${p}`,{signal:AbortSignal.timeout(8000)});
+          if(!res.ok) failed.push(`${p}(${res.status})`);
+        }catch(e){ failed.push(`${p}(타임아웃)`); }
+      }
+      if(failed.length) throw new Error(`실패: ${failed.join(', ')}`);
+      return `${pages.length}개 모두 HTTP 200`;
+    }
+  },
+  { id:'all-apis', name:'전체 API 헬스체크', group:'인프라',
+    desc:'/api/stats, stories, letters, dj/usage, data/overview 응답 확인',
+    run: async(base)=>{
+      const apis=['/api/stats','/api/stories?limit=1','/api/letters','/api/dj/usage','/api/data/overview'];
+      const rows=[];
+      for(const api of apis){
+        const t=Date.now();
+        try{
+          const res=await fetch(`${base}${api}`,{signal:AbortSignal.timeout(12000)});
+          rows.push(`${api.split('/api/')[1].split('?')[0]}:${res.ok?'✅':'❌'}${Date.now()-t}ms`);
+        }catch(e){ rows.push(`${api.split('/api/')[1]}:❌타임아웃`); }
+      }
+      const failed=rows.filter(r=>r.includes('❌'));
+      if(failed.length) throw new Error(failed.join(' / '));
+      return rows.join(' | ');
+    }
+  },
+  { id:'response-speed', name:'응답 속도 측정', group:'인프라',
+    desc:'주요 API 3개 평균 응답속도 측정 (5000ms 초과 시 실패)',
+    run: async(base)=>{
+      const targets=['/api/stats','/api/stories?limit=5','/api/letters'];
+      const times=[];
+      for(const t of targets){
+        const s=Date.now();
+        await fetch(`${base}${t}`,{signal:AbortSignal.timeout(12000)});
+        times.push(Date.now()-s);
+      }
+      const avg=Math.round(times.reduce((a,b)=>a+b,0)/times.length);
+      const max=Math.max(...times);
+      if(max>5000) throw new Error(`최대 ${max}ms — 너무 느림`);
+      return `평균${avg}ms/최대${max}ms ${avg<500?'🟢빠름':avg<2000?'🟡보통':'🔴느림'}`;
+    }
+  },
+  { id:'cleanup-letter', name:'테스트 편지 정리', group:'인프라',
+    desc:'자동 생성된 테스트 편지 삭제 시도 (DB 정리)',
+    run: async(base)=>{
+      if(!window._testLetterId) return '삭제할 테스트 편지 없음';
+      const res=await fetch(`${base}/api/letters/${window._testLetterId}`,{method:'DELETE',signal:AbortSignal.timeout(8000)});
+      if(res.status===404) return '이미 삭제됨';
+      if(res.status===405) return `⚠️ 삭제 API 미구현 — 수동 삭제 필요 (ID:${window._testLetterId.slice(0,8)}...)`;
+      const d=await res.json().catch(()=>({}));
+      return d.success ? '테스트 편지 삭제 완료' : `⚠️ 삭제 응답: ${JSON.stringify(d)}`;
     }
   },
 ];
@@ -368,30 +704,81 @@ function log(msg, type='info'){
   el.scrollTop = el.scrollHeight;
 }
 
+let _startTime = 0;
 function updateSummary(){
   const pass = Object.values(results).filter(r=>r==='pass').length;
   const fail = Object.values(results).filter(r=>r==='fail').length;
   const total = TESTS.length;
   const skip = total - pass - fail;
+  const rate = total > 0 ? Math.round((pass / total) * 100) : 0;
   document.getElementById('s-total').textContent = total;
   document.getElementById('s-pass').textContent = pass;
   document.getElementById('s-fail').textContent = fail;
   document.getElementById('s-skip').textContent = skip;
+  document.getElementById('s-rate').textContent = `통과율 ${rate}%`;
+  // 실패 그룹 목록
+  const failGroups = [...new Set(TESTS.filter(t=>results[t.id]==='fail').map(t=>t.group))];
+  document.getElementById('s-fail-groups').textContent = failGroups.length ? failGroups.join(', ') : '없음';
+  // 경과 시간
+  if(_startTime) {
+    const elapsed = ((Date.now()-_startTime)/1000).toFixed(1);
+    document.getElementById('s-elapsed').textContent = `${elapsed}s 경과`;
+  }
+  // 진행률
+  const done = pass + fail;
+  const pct = total > 0 ? Math.round((done/total)*100) : 0;
+  const fill = document.getElementById('progress-fill');
+  const pctEl = document.getElementById('progress-pct');
+  if(fill) fill.style.width = pct + '%';
+  if(pctEl) pctEl.textContent = pct + '%';
+  // 그룹 탭 패스 표시
+  document.querySelectorAll('.gtab').forEach(tab => {
+    const g = tab.dataset.g;
+    if(g === '전체') return;
+    const gTests = TESTS.filter(t => t.group === g);
+    const gPass = gTests.filter(t => results[t.id] === 'pass').length;
+    if(gPass === gTests.length && gTests.length > 0) tab.classList.add('pass-all');
+    else tab.classList.remove('pass-all');
+  });
+}
+
+let currentGroupFilter = '전체';
+
+function filterGroup(el){
+  document.querySelectorAll('.gtab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  currentGroupFilter = el.dataset.g;
+  renderTests();
 }
 
 function renderTests(){
   const list = document.getElementById('test-list');
-  list.innerHTML = TESTS.map(t => `
-    <div class="test-item" id="item-${t.id}">
-      <div class="status-icon" id="icon-${t.id}">⏳</div>
-      <div class="test-info">
-        <div class="test-name">${t.name}</div>
-        <div class="test-desc">${t.desc}</div>
-        <div id="result-${t.id}"></div>
-      </div>
-      <div class="test-time" id="time-${t.id}"></div>
-    </div>
-  `).join('');
+  const filtered = currentGroupFilter === '전체' ? TESTS : TESTS.filter(t => t.group === currentGroupFilter);
+
+  // 그룹별로 묶기
+  let html = '';
+  let lastGroup = '';
+  filtered.forEach(t => {
+    if(t.group !== lastGroup){
+      const groupTests = filtered.filter(x => x.group === t.group);
+      const groupPass = groupTests.filter(x => results[x.id] === 'pass').length;
+      const groupFail = groupTests.filter(x => results[x.id] === 'fail').length;
+      const groupStatus = groupFail > 0 ? '❌' : groupPass === groupTests.length ? '✅' : '';
+      html += `<div class="group-header">${groupStatus} ${t.group} <span class="gh-count">${groupTests.length}개</span></div>`;
+      lastGroup = t.group;
+    }
+    html += `
+      <div class="test-item" id="item-${t.id}">
+        <div class="status-icon" id="icon-${t.id}">⏳</div>
+        <div class="test-info">
+          <div class="test-name">${t.name}</div>
+          <div class="test-desc">${t.desc}</div>
+          <div id="result-${t.id}"></div>
+        </div>
+        <div class="test-time" id="time-${t.id}"></div>
+      </div>`;
+  });
+  list.innerHTML = html;
 }
 
 function setRunning(id){
@@ -424,11 +811,16 @@ async function runAll(){
   renderTests();
   updateSummary();
 
-  log(`테스트 시작 — 대상: ${base}`, 'info');
+  _startTime = Date.now();
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('progress-label').textContent = '준비 중...';
+  log(`테스트 시작 — 대상: ${base} / 총 ${TESTS.length}개`, 'info');
 
   for(const test of TESTS){
     setRunning(test.id);
-    log(`[${test.name}] 실행 중...`, 'info');
+    const progLabel = document.getElementById('progress-label');
+    if(progLabel) progLabel.textContent = `[${TESTS.indexOf(test)+1}/${TESTS.length}] ${test.name}`;
+    log(`[${test.group||''}][${test.name}] 실행 중...`, 'info');
     const start = Date.now();
     try{
       const msg = await test.run(base);
@@ -446,7 +838,11 @@ async function runAll(){
 
   const pass = Object.values(results).filter(r=>r==='pass').length;
   const fail = Object.values(results).filter(r=>r==='fail').length;
-  log(`테스트 완료 — 통과: ${pass} / 실패: ${fail}`, fail > 0 ? 'warn' : 'ok');
+  const elapsed = ((Date.now()-_startTime)/1000).toFixed(1);
+  log(`━━━ 완료 — 통과:${pass} / 실패:${fail} / 소요:${elapsed}s ━━━`, fail > 0 ? 'warn' : 'ok');
+  const progLabel = document.getElementById('progress-label');
+  if(progLabel) progLabel.textContent = `완료 — ${pass}/${TESTS.length} 통과 (${elapsed}s)`;
+  renderTests(); // 그룹 헤더 상태 업데이트
   btn.disabled = false;
   btn.textContent = '▶ 다시 실행';
 }
