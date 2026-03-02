@@ -680,3 +680,69 @@ app.post('/api/sim/generate', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── 엑셀 사연 일괄 업로드 ─────────────────────
+app.post('/api/sim/upload-stories', memUpload.single('file'), async (req, res) => {
+  try {
+    const XLSX = require('xlsx');
+    if(!req.file) return res.status(400).json({ error: '파일 없음' });
+
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws);
+
+    const audienceMap = { Leader: 'self', General: 'self', Parent: 'parent', Worker: 'helper' };
+    const categoryMap = { Leader: '🎤 당사자 목소리', General: '💬 일상 이야기', Parent: '👨‍👩‍👧 가족 이야기', Worker: '🤝 현장 이야기' };
+
+    let success = 0, failed = 0, errors = [];
+
+    for(const row of rows) {
+      try {
+        const id = String(row.ID || '').trim();
+        const name = String(row.Name || '').trim();
+        const cat = String(row.Category || '').trim();
+        const text = String(row.Story_Content || '').trim();
+        if(!name || !text) { failed++; continue; }
+
+        // 날짜/시간 처리
+        let created_at = new Date().toISOString();
+        if(row.Received_Date) {
+          try {
+            const d = new Date(row.Received_Date);
+            if(row.Received_Time) {
+              const t = row.Received_Time;
+              // xlsx time은 소수 (0.5 = 12:00)
+              if(typeof t === 'number') {
+                const totalMins = Math.round(t * 24 * 60);
+                d.setHours(Math.floor(totalMins/60), totalMins%60, 0, 0);
+              }
+            }
+            created_at = d.toISOString();
+          } catch(e) {}
+        }
+
+        const story = {
+          id: require('uuid').v4(),
+          name,
+          text,
+          category: categoryMap[cat] || '✨ 기타',
+          emotions: [],
+          audience_type: audienceMap[cat] || 'self',
+          voice_url: null,
+          input_method: 'text',
+          persona_id: id,
+          created_at,
+        };
+
+        const { error } = await supabase.from('stories').insert([story]);
+        if(error) { failed++; errors.push(`${name}: ${error.message}`); }
+        else success++;
+
+      } catch(e) { failed++; errors.push(e.message); }
+    }
+
+    res.json({ success: true, inserted: success, failed, errors: errors.slice(0,10) });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
