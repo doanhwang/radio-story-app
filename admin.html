@@ -507,11 +507,19 @@ function renderTable(){
     const t=d.toLocaleDateString('ko-KR')+' '+d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
     const emos=(s.emotions||[]).slice(0,2).map(e=>`<span class="badge b-emo">${e}</span>`).join('');
     const aiB=s.aiEmotion?`<span class="badge b-ai">🤖${s.aiEmotion}</span>`:'';
+    const broadcastB = s.broadcast_status === 'done'
+      ? `<span class="badge" style="background:rgba(0,200,80,0.15);color:#00c853;">📻 방송완료</span>`
+      : s.broadcast_status === 'pending'
+      ? `<span class="badge" style="background:rgba(255,200,0,0.15);color:#ffc400;">⏳ 대기</span>`
+      : `<span class="badge" style="background:rgba(255,255,255,0.06);color:#666;">미방송</span>`;
+    const storyTypeB = s.story_type && s.story_type !== 'unknown'
+      ? `<span class="badge" style="background:rgba(155,111,255,0.15);color:#9b6fff;">${s.story_type}</span>` : '';
     return `<tr onclick="openModal('${s.id}')">
       <td class="td-name">${s.name}</td>
-      <td>${s.category?`<span class="badge b-cat">${s.category}</span>`:'-'}</td>
+      <td>${s.category?`<span class="badge b-cat">${s.category}</span>`:'-'}<br>${storyTypeB}</td>
       <td>${emos}${aiB}</td>
       <td class="td-text">${s.text||(s.hasVoice?'(음성 사연)':'-')}</td>
+      <td>${broadcastB}</td>
       <td>${s.text?`<span class="badge b-text">텍스트</span>`:''}${s.hasVoice?`<span class="badge b-voice">음성</span>`:''}</td>
       <td class="td-time">${t}</td>
     </tr>`;
