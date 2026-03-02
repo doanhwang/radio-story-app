@@ -32,6 +32,8 @@ app.get('/test', (req, res) => res.sendFile(path.join(__dirname, 'test.html')));
 // /story?type=care    → 치매 가족 돌봄자
 app.get('/story', (req, res) => res.sendFile(path.join(__dirname, 'story.html')));
 app.get('/dj', (req, res) => res.sendFile(path.join(__dirname, 'dj.html')));
+app.get('/letter', (req, res) => res.sendFile(path.join(__dirname, 'letter.html')));
+app.get('/letter/:id', (req, res) => res.sendFile(path.join(__dirname, 'letter-view.html')));
 app.get('/manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'manifest.json')));
 app.get('/service-worker.js', (req, res) => res.sendFile(path.join(__dirname, 'service-worker.js')));
 app.get('/icon-192.png', (req, res) => res.sendFile(path.join(__dirname, 'icon-192.png')));
@@ -354,6 +356,71 @@ app.delete('/api/stories', async (req, res) => {
     if (error) throw error;
     res.json({ success: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 편지 저장 ────────────────────────────────
+app.post('/api/letters', async (req, res) => {
+  try {
+    const { from_name, to_name, title, text, relation, emotions } = req.body;
+    if(!from_name || !to_name || !text)
+      return res.status(400).json({ error: '필수 항목 누락' });
+
+    const letter = {
+      id: uuidv4(),
+      from_name, to_name, title: title || `${from_name}이(가) ${to_name}에게`,
+      text, relation: relation || 'anyone',
+      emotions: emotions || [],
+      broadcast_text: null,
+      broadcast_at: null,
+    };
+
+    const { error } = await supabase.from('letters').insert([letter]);
+    if(error) throw error;
+
+    res.json({ success:true, id: letter.id });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 편지 조회 (공유 링크용) ──────────────────
+app.get('/api/letters/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('letters').select('*').eq('id', req.params.id).single();
+    if(error) throw error;
+    if(!data) return res.status(404).json({ error: '편지를 찾을 수 없습니다' });
+    res.json(data);
+  } catch(err) {
+    res.status(404).json({ error: err.message });
+  }
+});
+
+// ─── 편지 목록 (DJ 스튜디오용) ───────────────
+app.get('/api/letters', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('letters').select('*')
+      .order('created_at', { ascending: false }).limit(200);
+    if(error) throw error;
+    res.json({ total: data.length, items: data });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 편지에 방송 텍스트 저장 (DJ 스튜디오 연동) ─
+app.patch('/api/letters/:id/broadcast', async (req, res) => {
+  try {
+    const { broadcast_text } = req.body;
+    const { error } = await supabase.from('letters')
+      .update({ broadcast_text, broadcast_at: new Date().toISOString() })
+      .eq('id', req.params.id);
+    if(error) throw error;
+    res.json({ success: true });
+  } catch(err) {
     res.status(500).json({ error: err.message });
   }
 });
