@@ -170,6 +170,15 @@ app.post('/api/dj/generate', async (req, res) => {
 
     apiRes.on('end', async () => {
       res.write('data: [DONE]\n\n');
+
+      // 이벤트 로그: RADIO
+      if(story_id) {
+        logEvent('RADIO', {
+          story_id,
+          session_id: req.headers['x-session-id'] || null,
+          meta: { dj_name, dj_tone, music_genre }
+        });
+      }
       res.end();
 
       // 비용 계산 및 구조화 저장
@@ -322,6 +331,14 @@ app.post('/api/stories', upload.single('voice'), async (req, res) => {
     const { error } = await supabase.from('stories').insert([story]);
     if (error) throw error;
 
+
+    // 이벤트 로그: POST
+    logEvent('POST', {
+      story_id: story.id,
+      audience_type: story.audience_type,
+      session_id: req.headers['x-session-id'] || null,
+      meta: { category: story.category, input_method: story.input_method }
+    });
     res.json({ success: true, id: story.id });
   } catch (err) {
     console.error(err);
@@ -741,6 +758,71 @@ app.post('/api/sim/upload-stories', memUpload.single('file'), async (req, res) =
     }
 
     res.json({ success: true, inserted: success, failed, errors: errors.slice(0,10) });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 이벤트 로그 헬퍼 ────────────────────────────────────
+async function logEvent(event_type, opts = {}) {
+  try {
+    await supabase.from('events').insert([{
+      event_type,
+      story_id:     opts.story_id     || null,
+      letter_id:    opts.letter_id    || null,
+      session_id:   opts.session_id   || null,
+      audience_type:opts.audience_type|| null,
+      meta:         opts.meta         || {},
+    }]);
+  } catch(e) { /* 이벤트 실패는 무시 */ }
+}
+
+// ─── 이벤트 수집 API ──────────────────────────────────────
+// POST /api/events  — 클라이언트에서 ECHO/SHARE/INTENT/DONE 전송
+app.post('/api/events', async (req, res) => {
+  const { event_type, story_id, letter_id, session_id, audience_type, meta } = req.body;
+  if(!event_type) return res.status(400).json({ error: 'event_type 필수' });
+
+  const allowed = ['POST','RADIO','ECHO','SHARE','REPLY','INTENT','DONE'];
+  if(!allowed.includes(event_type)) return res.status(400).json({ error: '잘못된 event_type' });
+
+  await logEvent(event_type, { story_id, letter_id, session_id, audience_type, meta });
+  res.json({ success: true });
+});
+
+// GET /api/events/transition  — 전이율 대시보드용
+app.get('/api/events/transition', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('transition_rates').select('*').single();
+    if(error) throw error;
+    res.json({ success: true, data });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/events/funnel  — 일별 퍼널 데이터
+app.get('/api/events/funnel', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .select('event_type, created_at')
+      .order('created_at', { ascending: false })
+      .limit(1000);
+    if(error) throw error;
+
+    // 이벤트 타입별 집계
+    const counts = {};
+    (data || []).forEach(e => {
+      counts[e.event_type] = (counts[e.event_type] || 0) + 1;
+    });
+
+    const funnel = ['POST','RADIO','ECHO','SHARE','REPLY','INTENT','DONE'].map(type => ({
+      type,
+      count: counts[type] || 0
+    }));
+
+    res.json({ success: true, funnel, total: data?.length || 0 });
   } catch(err) {
     res.status(500).json({ error: err.message });
   }
