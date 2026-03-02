@@ -317,20 +317,65 @@ async function loadData(){
   main.innerHTML = '<div class="loading">데이터 로딩 중</div>';
 
   try {
-    const res = await fetch('/api/data/overview');
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    const d = await res.json();
-    renderDashboard(d);
+    const [overviewRes, funnelRes] = await Promise.all([
+      fetch('/api/data/overview'),
+      fetch('/api/events/funnel')
+    ]);
+    if(!overviewRes.ok) throw new Error('HTTP ' + overviewRes.status);
+    const d = await overviewRes.json();
+    const funnelData = funnelRes.ok ? await funnelRes.json() : null;
+    renderDashboard(d, funnelData);
   } catch(e){
     main.innerHTML = `<div class="loading">❗ 로드 실패: ${e.message}</div>`;
   }
 }
 
-function renderDashboard(d){
+function renderDashboard(d, funnelData){
   const s = d.summary;
   const main = document.getElementById('main-content');
 
+  // 퍼널 차트 HTML
+  const funnelHtml = funnelData ? (() => {
+    const steps = funnelData.funnel || [];
+    const max = Math.max(...steps.map(s=>s.count), 1);
+    const colors = {POST:'#00c8ff',RADIO:'#9b6fff',ECHO:'#00e5a0',SHARE:'#f5c842',REPLY:'#ff8c42',INTENT:'#ff6b9d',DONE:'#00e676'};
+    const labels = {POST:'사연 등록',RADIO:'DJ 방송',ECHO:'청취',SHARE:'공유',REPLY:'편지',INTENT:'해볼게요',DONE:'실행 완료'};
+    const bars = steps.map((step,i) => {
+      const pct = Math.round(step.count/max*100);
+      const rate = i>0 && steps[i-1].count>0 ? Math.round(step.count/steps[i-1].count*100) : 100;
+      return `<div style="margin-bottom:0.8rem;">
+        <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:0.3rem;">
+          <span style="color:${colors[step.type]};font-weight:700;">${labels[step.type]||step.type}</span>
+          <span style="color:#666;">${step.count}건 ${i>0?'('+rate+'%)':''}</span>
+        </div>
+        <div style="height:28px;background:#111;border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${colors[step.type]};border-radius:4px;
+            transition:width 0.6s ease;display:flex;align-items:center;padding-left:0.5rem;
+            font-size:0.7rem;font-weight:700;color:#000;min-width:${step.count>0?'2rem':'0'};">
+            ${step.count>0?step.count:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return `
+    <div class="sec-head"><div class="sec-title">🔄 Movement Funnel (전이율)</div><div class="sec-line"></div></div>
+    <div class="chart-card" style="margin-bottom:1.5rem;">
+      <div style="font-size:0.75rem;color:#666;margin-bottom:1rem;">
+        North Star: <b style="color:#00e676;">VAR-30</b> — 30일 내 DONE까지 간 사연 비율
+      </div>
+      ${bars}
+      <div style="margin-top:1rem;padding-top:0.8rem;border-top:1px solid #222;
+        font-size:0.72rem;color:#555;font-family:'IBM Plex Mono',monospace;">
+        POST→RADIO: ${steps[0]&&steps[1]?Math.round((steps[1].count||0)/Math.max(steps[0].count,1)*100):0}% |
+        RADIO→ECHO: ${steps[1]&&steps[2]?Math.round((steps[2].count||0)/Math.max(steps[1].count,1)*100):0}% |
+        ECHO→INTENT: ${steps[2]&&steps[5]?Math.round((steps[5].count||0)/Math.max(steps[2].count,1)*100):0}% |
+        INTENT→DONE: ${steps[5]&&steps[6]?Math.round((steps[6].count||0)/Math.max(steps[5].count,1)*100):0}%
+      </div>
+    </div>`;
+  })() : '';
+
   main.innerHTML = `
+    ${funnelHtml}
     <!-- ── KPI ── -->
     <div class="sec-head"><div class="sec-title">핵심 지표</div><div class="sec-line"></div></div>
     <div class="kpi-grid">
