@@ -452,7 +452,8 @@ async function submitLetter(){
     window._fromName = fromName;
 
   } catch(e){
-    errEl.textContent = '오류: ' + e.message;
+    console.error('편지 전송 오류:', e);
+    errEl.textContent = '오류: ' + (e.message || '서버 연결 실패');
     errEl.style.display = 'block';
     btn.disabled = false;
     btn.textContent = '💌 편지 보내기';
@@ -484,10 +485,40 @@ function formatPhone(el){
 
 // ── 입력 탭 전환 ──
 function switchInputTab(tab){
+  // 탭 전환 시 STT/녹음 강제 중지
+  if(recognizing){ stopSTT(); }
+  if(recActive){ stopRec(); }
+
   ['text','rec','stt'].forEach(t => {
     document.getElementById('input-'+t).style.display = tab===t ? 'block' : 'none';
     document.getElementById('tab-'+t).classList.toggle('on', tab===t);
   });
+}
+
+function stopSTT(){
+  recognizing = false;
+  if(recognition){ try{ recognition.abort(); }catch(e){} recognition = null; }
+  clearInterval(sttTimer);
+  const btn = document.getElementById('stt-btn');
+  if(btn){ btn.style.opacity='1'; }
+  const label = document.getElementById('stt-label');
+  if(label) label.textContent = '🎤 받아쓰기 시작';
+  const timer = document.getElementById('stt-timer');
+  if(timer) timer.style.display = 'none';
+}
+
+function stopRec(){
+  if(recorder && recActive){
+    try{ recorder.stop(); }catch(e){}
+  }
+  recActive = false;
+  clearInterval(timerInt);
+  const btn = document.getElementById('rec-btn');
+  if(btn) btn.classList.remove('recording');
+  const label = document.getElementById('rec-label');
+  if(label) label.textContent = '🔴 녹음 시작';
+  const timer = document.getElementById('rec-timer');
+  if(timer) timer.style.display = 'none';
 }
 
 // ── 음성 녹음 ──
@@ -559,12 +590,7 @@ function toggleSTT(){
     },1000);
     startSTT();
   } else {
-    recognizing=false;
-    if(recognition){ try{recognition.stop();}catch(e){} recognition=null; }
-    clearInterval(sttTimer);
-    document.getElementById('stt-btn').style.opacity='1';
-    document.getElementById('stt-label').textContent='🎤 받아쓰기 시작';
-    document.getElementById('stt-timer').style.display='none';
+    stopSTT();
     document.getElementById('stt-status').textContent='✅ 받아쓰기 완료 — 내용을 확인하고 편집하세요';
   }
 }
@@ -585,7 +611,9 @@ function startSTT(){
     document.getElementById('stt-char-count').textContent = el.value.length;
   };
   recognition.onend = () => {
-    if(recognizing){ base=document.getElementById('stt-text').value.trimEnd(); try{recognition.start();}catch(e){startSTT();} }
+    if(!recognizing) return; // 이미 중지 요청된 경우 재시작 안 함
+    base = document.getElementById('stt-text').value.trimEnd();
+    try{ recognition.start(); }catch(e){ setTimeout(startSTT, 200); }
   };
   recognition.onerror = (e) => {
     if(e.error==='no-speech'&&recognizing){ try{recognition.start();}catch(err){startSTT();} }
