@@ -33,6 +33,7 @@ app.get('/test', (req, res) => res.sendFile(path.join(__dirname, 'test.html')));
 app.get('/story', (req, res) => res.sendFile(path.join(__dirname, 'story.html')));
 app.get('/dj', (req, res) => res.sendFile(path.join(__dirname, 'dj.html')));
 app.get('/data', (req, res) => res.sendFile(path.join(__dirname, 'data.html')));
+app.get('/sim',  (req, res) => res.sendFile(path.join(__dirname, 'sim.html')));
 app.get('/letter', (req, res) => res.sendFile(path.join(__dirname, 'letter.html')));
 app.get('/letter/:id', (req, res) => res.sendFile(path.join(__dirname, 'letter-view.html')));
 app.get('/manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'manifest.json')));
