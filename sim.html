@@ -306,6 +306,7 @@ body {
     </div>
     <div style="display:flex;gap:0.5rem;">
       <button class="hbtn btn-batch" onclick="openBatch()" style="background:var(--orange);color:#000;border-color:var(--orange);">⚡ 배치 실행</button>
+      <button class="hbtn" onclick="openUpload()" style="background:var(--green);color:#000;border-color:var(--green);">📥 엑셀 업로드</button>
       <button class="hbtn" onclick="location.href='/admin'">관리자</button>
       <button class="hbtn" onclick="location.href='/data'">Data</button>
     </div>
@@ -405,6 +406,27 @@ body {
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 엑셀 업로드 모달 -->
+<div class="modal-overlay" id="upload-modal">
+  <div class="modal">
+    <div class="modal-title">📥 엑셀 사연 일괄 업로드</div>
+    <div class="modal-desc">사연.xlsx 파일을 업로드하면 190건 전체를 DB에 자동 저장합니다.<br>
+    컬럼: ID, Name, Category, Received_Date, Received_Time, Story_Content</div>
+    <div style="margin:1rem 0;">
+      <input type="file" id="upload-file" accept=".xlsx,.xls"
+        style="background:var(--card2);border:1px solid var(--border2);color:var(--text);
+        padding:0.6rem;border-radius:7px;width:100%;font-size:0.8rem;">
+    </div>
+    <div id="upload-result" style="display:none;margin:0.8rem 0;padding:0.8rem;
+      background:var(--bg);border-radius:8px;font-family:'IBM Plex Mono',monospace;
+      font-size:0.75rem;max-height:150px;overflow-y:auto;"></div>
+    <div class="modal-btns">
+      <button class="sim-btn" style="background:var(--muted);color:#000;" onclick="closeUpload()">닫기</button>
+      <button class="sim-btn" style="background:var(--green);color:#000;" id="upload-run-btn" onclick="runUpload()">▶ 업로드 시작</button>
     </div>
   </div>
 </div>
@@ -972,6 +994,43 @@ async function generateDJ(p, storyId, storyText, tone, genre, resultEl) {
 // ── 배치 실행 ──
 function openBatch() { document.getElementById('batch-modal').classList.add('open'); }
 function closeBatch() { if(!batchRunning) document.getElementById('batch-modal').classList.remove('open'); }
+
+function openUpload() { document.getElementById('upload-modal').classList.add('open'); }
+function closeUpload() { document.getElementById('upload-modal').classList.remove('open'); }
+
+async function runUpload() {
+  const fileInput = document.getElementById('upload-file');
+  const resultEl = document.getElementById('upload-result');
+  const btn = document.getElementById('upload-run-btn');
+  if(!fileInput.files[0]) { alert('파일을 선택하세요.'); return; }
+
+  btn.disabled = true; btn.textContent = '업로드 중...';
+  resultEl.style.display = 'block';
+  resultEl.textContent = '📤 업로드 중...\n';
+
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+
+  try {
+    const res = await fetch(BASE_URL + '/api/sim/upload-stories', { method:'POST', body:fd });
+    const d = await res.json();
+    if(d.success) {
+      resultEl.textContent += '✅ 완료!\n';
+      resultEl.textContent += '저장 성공: ' + d.inserted + '건\n';
+      resultEl.textContent += '실패: ' + d.failed + '건\n';
+      if(d.errors && d.errors.length) resultEl.textContent += '오류:\n' + d.errors.join('\n');
+      resultEl.style.color = 'var(--green)';
+      updateHeaderStats();
+    } else {
+      resultEl.textContent += '❌ 오류: ' + d.error;
+      resultEl.style.color = 'var(--red)';
+    }
+  } catch(e) {
+    resultEl.textContent += '❌ ' + e.message;
+    resultEl.style.color = 'var(--red)';
+  }
+  btn.disabled = false; btn.textContent = '▶ 업로드 시작';
+}
 
 async function runBatch() {
   if(batchRunning) return;
