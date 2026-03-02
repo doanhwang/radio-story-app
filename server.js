@@ -171,13 +171,25 @@ app.post('/api/dj/generate', async (req, res) => {
     apiRes.on('end', async () => {
       res.write('data: [DONE]\n\n');
 
-      // 이벤트 로그: RADIO
+      // 이벤트 로그: RADIO + stories 방송 상태 업데이트
       if(story_id) {
         logEvent('RADIO', {
           story_id,
           session_id: req.headers['x-session-id'] || null,
           meta: { dj_name, dj_tone, music_genre }
         });
+        // stories 테이블 broadcast_status 업데이트
+        supabase.from('stories')
+          .update({
+            broadcast_status: 'done',
+            broadcast_count: supabase.raw ? undefined : undefined // rpc로 increment
+          })
+          .eq('id', story_id)
+          .then(() => {
+            // broadcast_count increment (별도 rpc 없이 현재값+1)
+            supabase.rpc('increment_broadcast_count', { story_id_arg: story_id })
+              .then(() => {}).catch(() => {});
+          });
       }
       res.end();
 
@@ -786,7 +798,24 @@ app.post('/api/events', async (req, res) => {
   const allowed = ['POST','RADIO','ECHO','SHARE','REPLY','INTENT','DONE'];
   if(!allowed.includes(event_type)) return res.status(400).json({ error: '잘못된 event_type' });
 
-  await logEvent(event_type, { story_id, letter_id, session_id, audience_type, meta });
+  await logEvent(event_type, { story_id, letter_id, session_id, audience_type, meta, dj_id: req.body.dj_id });
+
+  // stories 카운터 자동 업데이트
+  if(story_id) {
+    const colMap = { ECHO:'reaction_count', SHARE:'share_count', INTENT:'intent_count', DONE:'done_count' };
+    const col = colMap[event_type];
+    if(col) {
+      supabase.rpc('increment_story_counter', { story_id_arg: story_id, col_name: col })
+        .then(() => {}).catch(() => {});
+    }
+  }
+
+  // letters echo_count 업데이트
+  if(letter_id && event_type === 'ECHO') {
+    supabase.rpc('increment_letter_echo', { letter_id_arg: letter_id })
+      .then(() => {}).catch(() => {});
+  }
+
   res.json({ success: true });
 });
 
