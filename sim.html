@@ -806,17 +806,14 @@ async function generateStoryText(p, scenario) {
 
 사연:`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch(BASE_URL + '/api/sim/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }]
-    })
+    body: JSON.stringify({ prompt })
   });
   const data = await response.json();
-  return data.content?.[0]?.text || '';
+  if(!data.success) throw new Error(data.error || '생성 실패');
+  return data.text || '';
 }
 
 // ── AI 편지 생성 ──
@@ -835,17 +832,14 @@ ${targetP.name}(${targetP.age}세, ${targetP.disability})에게 진심어린 편
 
 편지 내용:`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch(BASE_URL + '/api/sim/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }]
-    })
+    body: JSON.stringify({ prompt })
   });
   const data = await response.json();
-  return data.content?.[0]?.text || '';
+  if(!data.success) throw new Error(data.error || '생성 실패');
+  return data.text || '';
 }
 
 // ── 시뮬레이션 실행 ──
