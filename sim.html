@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLOSSOM SIM — 시뮬레이션 관리</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e13;
+  --surface: #0f1419;
+  --card: #141c24;
+  --card2: #1a2433;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #dde6f0;
+  --muted: #607080;
+  --faint: rgba(255,255,255,0.03);
+
+  --green: #00e5a0;
+  --cyan: #00c8ff;
+  --gold: #f5c842;
+  --purple: #9b6fff;
+  --pink: #ff6b9d;
+  --orange: #ff8c42;
+  --red: #ff4d6a;
+  --blue: #4d9fff;
+
+  --leader: #ff6b9d;
+  --general: #00c8ff;
+  --parent: #f5c842;
+  --worker: #00e5a0;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── 로그인 ── */
+#login-screen {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; min-height:100vh; gap:1.2rem;
+}
+.login-title { font-family:'IBM Plex Mono',monospace; font-size:1.6rem; color:var(--cyan); letter-spacing:0.1em; }
+.login-sub { font-size:0.78rem; color:var(--muted); }
+.login-box { background:var(--card); border:1px solid var(--border2); border-radius:10px; padding:1.8rem; width:300px; }
+.login-box input { width:100%; background:var(--card2); border:1px solid var(--border2); color:var(--text);
+  padding:0.75rem 1rem; border-radius:7px; font-family:'IBM Plex Mono',monospace; font-size:0.85rem; outline:none; margin-bottom:0.8rem; }
+.login-box input:focus { border-color:var(--cyan); }
+.login-box button { width:100%; padding:0.75rem; background:var(--cyan); color:#000; border:none; border-radius:7px;
+  font-weight:700; cursor:pointer; transition:filter 0.15s; }
+.login-box button:hover { filter:brightness(1.1); }
+.login-err { color:var(--red); font-size:0.75rem; text-align:center; display:none; margin-top:0.4rem; }
+
+/* ── 앱 전체 ── */
+#app { display:none; }
+
+/* ── 헤더 ── */
+.header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.9rem 1.5rem; background:var(--surface);
+  border-bottom:1px solid var(--border); position:sticky; top:0; z-index:200;
+}
+.header-logo { font-family:'IBM Plex Mono',monospace; font-size:1rem; color:var(--cyan); letter-spacing:0.08em; }
+.header-logo span { color:var(--muted); font-size:0.75rem; }
+.header-stats { display:flex; gap:1rem; }
+.hstat { font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--muted); }
+.hstat b { color:var(--green); }
+.hbtn { padding:0.45rem 0.9rem; border:1px solid var(--border2); border-radius:6px;
+  background:transparent; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:all 0.15s; }
+.hbtn:hover { border-color:var(--cyan); color:var(--cyan); }
+
+/* ── 2컬럼 레이아웃 ── */
+.layout { display:grid; grid-template-columns:340px 1fr; height:calc(100vh - 52px); overflow:hidden; }
+
+/* ── 사이드바: 페르소나 목록 ── */
+.sidebar {
+  background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.sidebar-search { padding:0.8rem; border-bottom:1px solid var(--border); }
+.sidebar-search input {
+  width:100%; background:var(--card); border:1px solid var(--border2);
+  color:var(--text); padding:0.55rem 0.8rem; border-radius:7px;
+  font-size:0.82rem; outline:none;
+}
+.sidebar-search input:focus { border-color:var(--cyan); }
+
+.group-filter { display:flex; gap:0.3rem; padding:0.5rem 0.8rem; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.gf-btn { padding:0.25rem 0.6rem; border-radius:4px; font-size:0.68rem; font-weight:700;
+  cursor:pointer; border:1px solid; transition:all 0.15s; background:transparent; }
+.gf-btn.all  { border-color:var(--muted); color:var(--muted); }
+.gf-btn.leader { border-color:var(--leader); color:var(--leader); }
+.gf-btn.general { border-color:var(--general); color:var(--general); }
+.gf-btn.parent { border-color:var(--parent); color:var(--parent); }
+.gf-btn.worker { border-color:var(--worker); color:var(--worker); }
+.gf-btn.on { color:#000 !important; }
+.gf-btn.all.on  { background:var(--muted); }
+.gf-btn.leader.on  { background:var(--leader); }
+.gf-btn.general.on { background:var(--general); }
+.gf-btn.parent.on  { background:var(--parent); }
+.gf-btn.worker.on  { background:var(--worker); }
+
+.persona-list { flex:1; overflow-y:auto; }
+.persona-list::-webkit-scrollbar { width:4px; }
+.persona-list::-webkit-scrollbar-track { background:transparent; }
+.persona-list::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+.persona-item {
+  display:flex; align-items:center; gap:0.7rem;
+  padding:0.7rem 0.8rem; border-bottom:1px solid var(--border);
+  cursor:pointer; transition:background 0.12s; position:relative;
+}
+.persona-item:hover { background:var(--faint); }
+.persona-item.active { background:var(--card2); }
+.persona-item.done { opacity:0.5; }
+.persona-item.done::after {
+  content:'✓'; position:absolute; right:0.8rem; top:50%; transform:translateY(-50%);
+  color:var(--green); font-size:0.75rem; font-weight:700;
+}
+
+.p-avatar {
+  width:36px; height:36px; border-radius:50%; display:flex; align-items:center;
+  justify-content:center; font-size:0.78rem; font-weight:700; flex-shrink:0;
+  font-family:'IBM Plex Mono',monospace;
+}
+.p-info { flex:1; min-width:0; }
+.p-name { font-size:0.85rem; font-weight:600; }
+.p-meta { font-size:0.68rem; color:var(--muted); margin-top:0.1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.p-badge { font-size:0.6rem; font-weight:700; padding:0.1rem 0.4rem; border-radius:3px; flex-shrink:0; }
+
+/* ── 메인 패널 ── */
+.main-panel { display:flex; flex-direction:column; overflow:hidden; }
+
+/* 빈 상태 */
+.empty-state {
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:0.8rem; color:var(--muted);
+}
+.empty-icon { font-size:3rem; }
+.empty-title { font-size:1rem; font-weight:600; }
+.empty-sub { font-size:0.8rem; }
+
+/* 페르소나 상세 */
+.detail-panel { flex:1; overflow-y:auto; padding:1.5rem; display:none; }
+.detail-panel::-webkit-scrollbar { width:4px; }
+.detail-panel::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+/* 프로필 카드 */
+.profile-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:1.4rem; margin-bottom:1rem;
+  display:flex; gap:1.2rem; align-items:flex-start;
+}
+.profile-avatar {
+  width:64px; height:64px; border-radius:50%; display:flex; align-items:center;
+  justify-content:center; font-size:1.2rem; font-weight:700; flex-shrink:0;
+  font-family:'IBM Plex Mono',monospace;
+}
+.profile-name { font-size:1.3rem; font-weight:700; margin-bottom:0.3rem; }
+.profile-tags { display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.5rem; }
+.ptag { font-size:0.68rem; padding:0.15rem 0.5rem; border-radius:3px; font-weight:600; }
+
+.profile-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; margin-top:0.8rem;
+}
+.pg-item { font-size:0.75rem; }
+.pg-item .k { color:var(--muted); margin-right:0.3rem; }
+.pg-item .v { color:var(--text); font-weight:500; }
+
+/* 시뮬레이션 컨트롤 */
+.sim-controls {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:1.2rem; margin-bottom:1rem;
+}
+.sim-title { font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.12em;
+  text-transform:uppercase; color:var(--muted); margin-bottom:0.8rem; }
+.sim-row { display:flex; gap:0.6rem; margin-bottom:0.6rem; flex-wrap:wrap; }
+
+.sim-select {
+  flex:1; background:var(--card2); border:1px solid var(--border2); color:var(--text);
+  padding:0.5rem 0.7rem; border-radius:7px; font-size:0.8rem; outline:none; min-width:120px;
+}
+.sim-select:focus { border-color:var(--cyan); }
+
+.sim-btn {
+  padding:0.55rem 1.2rem; border-radius:7px; font-size:0.82rem; font-weight:700;
+  cursor:pointer; border:none; transition:all 0.15s; display:flex; align-items:center; gap:0.4rem;
+}
+.sim-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.btn-story { background:var(--cyan); color:#000; }
+.btn-story:hover:not(:disabled) { filter:brightness(1.1); }
+.btn-letter { background:var(--pink); color:#000; }
+.btn-letter:hover:not(:disabled) { filter:brightness(1.1); }
+.btn-dj { background:var(--purple); color:#fff; }
+.btn-dj:hover:not(:disabled) { filter:brightness(1.1); }
+.btn-all { background:var(--gold); color:#000; }
+.btn-all:hover:not(:disabled) { filter:brightness(1.1); }
+.btn-batch { background:var(--orange); color:#000; }
+.btn-batch:hover:not(:disabled) { filter:brightness(1.1); }
+
+/* 결과 영역 */
+.result-area {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:1.2rem; margin-bottom:1rem;
+}
+.result-title { font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.12em;
+  text-transform:uppercase; color:var(--muted); margin-bottom:0.8rem;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.result-status { display:flex; align-items:center; gap:0.4rem; }
+.status-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); }
+.status-dot.running { background:var(--cyan); animation:pulse 1s infinite; }
+.status-dot.done { background:var(--green); }
+.status-dot.err { background:var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.result-text {
+  background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:1rem; font-size:0.8rem; line-height:1.7; min-height:80px;
+  white-space:pre-wrap; font-family:'IBM Plex Mono',monospace; color:var(--text);
+  max-height:300px; overflow-y:auto;
+}
+.result-text::-webkit-scrollbar { width:3px; }
+.result-text::-webkit-scrollbar-thumb { background:var(--border2); }
+
+/* 히스토리 */
+.history-area {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:1.2rem;
+}
+.history-list { display:flex; flex-direction:column; gap:0.5rem; max-height:200px; overflow-y:auto; }
+.history-item {
+  display:flex; align-items:center; gap:0.6rem;
+  padding:0.5rem 0.7rem; background:var(--card2); border-radius:6px;
+  font-size:0.75rem;
+}
+.history-type { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; padding:0.1rem 0.4rem;
+  border-radius:3px; font-weight:700; flex-shrink:0; }
+.ht-story { background:rgba(0,200,255,0.15); color:var(--cyan); }
+.ht-letter { background:rgba(255,107,157,0.15); color:var(--pink); }
+.ht-dj { background:rgba(155,111,255,0.15); color:var(--purple); }
+.history-name { flex:1; color:var(--text); }
+.history-time { color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:0.65rem; }
+.history-link { color:var(--cyan); text-decoration:none; font-size:0.65rem; }
+.history-link:hover { text-decoration:underline; }
+
+/* 배치 모달 */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:500;
+  display:none; align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:var(--card); border:1px solid var(--border2); border-radius:14px;
+  padding:1.8rem; width:480px; max-width:90vw;
+}
+.modal-title { font-family:'IBM Plex Mono',monospace; font-size:0.9rem; color:var(--cyan);
+  margin-bottom:1.2rem; letter-spacing:0.08em; }
+.modal-desc { font-size:0.8rem; color:var(--muted); margin-bottom:1rem; line-height:1.6; }
+.modal-progress { margin:1rem 0; }
+.mp-label { font-size:0.72rem; color:var(--muted); margin-bottom:0.4rem; display:flex; justify-content:space-between; }
+.mp-bar { height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+.mp-fill { height:100%; background:linear-gradient(90deg, var(--cyan), var(--green)); border-radius:4px; transition:width 0.4s; width:0%; }
+.mp-log { margin-top:0.8rem; background:var(--bg); border-radius:6px; padding:0.7rem;
+  font-family:'IBM Plex Mono',monospace; font-size:0.7rem; max-height:120px; overflow-y:auto; }
+.modal-btns { display:flex; gap:0.6rem; margin-top:1.2rem; justify-content:flex-end; }
+
+/* 로딩 스피너 */
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.2);
+  border-top-color:currentColor; border-radius:50%; animation:spin 0.7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg) } }
+
+/* 반응형 */
+@media(max-width:800px) {
+  .layout { grid-template-columns:1fr; }
+  .sidebar { height:40vh; }
+}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="login-screen">
+  <div class="login-title">BLOSSOM SIM</div>
+  <div class="login-sub">페르소나 시뮬레이션 관리 도구</div>
+  <div class="login-box">
+    <input type="password" id="pw" placeholder="관리자 비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">접속</button>
+    <div class="login-err" id="login-err">비밀번호가 틀렸습니다</div>
+  </div>
+</div>
+
+<!-- 앱 -->
+<div id="app">
+  <header class="header">
+    <div class="header-logo">BLOSSOM SIM <span>/ 페르소나 시뮬레이터</span></div>
+    <div class="header-stats">
+      <div class="hstat">완료 <b id="stat-done">0</b></div>
+      <div class="hstat">사연 <b id="stat-stories">0</b></div>
+      <div class="hstat">편지 <b id="stat-letters">0</b></div>
+      <div class="hstat">방송 <b id="stat-dj">0</b></div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="hbtn btn-batch" onclick="openBatch()" style="background:var(--orange);color:#000;border-color:var(--orange);">⚡ 배치 실행</button>
+      <button class="hbtn" onclick="location.href='/admin'">관리자</button>
+      <button class="hbtn" onclick="location.href='/data'">Data</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- 사이드바 -->
+    <div class="sidebar">
+      <div class="sidebar-search">
+        <input type="text" id="search-input" placeholder="이름, 장애유형, 직업 검색..." oninput="filterPersonas()">
+      </div>
+      <div class="group-filter">
+        <button class="gf-btn all on" onclick="setGroupFilter('all',this)">전체</button>
+        <button class="gf-btn leader" onclick="setGroupFilter('Leader',this)">리더</button>
+        <button class="gf-btn general" onclick="setGroupFilter('General',this)">당사자</button>
+        <button class="gf-btn parent" onclick="setGroupFilter('Parent',this)">부모</button>
+        <button class="gf-btn worker" onclick="setGroupFilter('Worker',this)">활동지원</button>
+      </div>
+      <div class="persona-list" id="persona-list"></div>
+    </div>
+
+    <!-- 메인 패널 -->
+    <div class="main-panel">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🎭</div>
+        <div class="empty-title">페르소나를 선택하세요</div>
+        <div class="empty-sub">좌측 목록에서 시뮬레이션할 참여자를 클릭하세요</div>
+      </div>
+
+      <div class="detail-panel" id="detail-panel">
+        <!-- 프로필 -->
+        <div class="profile-card" id="profile-card"></div>
+
+        <!-- 시뮬레이션 컨트롤 -->
+        <div class="sim-controls">
+          <div class="sim-title">🎮 시뮬레이션 실행</div>
+          <div class="sim-row">
+            <select class="sim-select" id="sel-tone">
+              <option value="따뜻하고 공감하는">따뜻하고 공감하는</option>
+              <option value="밝고 희망적인">밝고 희망적인</option>
+              <option value="잔잔하고 차분한">잔잔하고 차분한</option>
+              <option value="열정적이고 감동적인">열정적이고 감동적인</option>
+              <option value="위트있고 유쾌한">위트있고 유쾌한</option>
+            </select>
+            <select class="sim-select" id="sel-genre">
+              <option value="발라드">발라드</option>
+              <option value="K-POP">K-POP</option>
+              <option value="재즈">재즈</option>
+              <option value="클래식">클래식</option>
+              <option value="포크">포크</option>
+              <option value="트로트">트로트</option>
+            </select>
+            <select class="sim-select" id="sel-scenario">
+              <option value="일상">일상 사연</option>
+              <option value="감사">감사 전달</option>
+              <option value="고충">고충/어려움</option>
+              <option value="희망">희망/꿈</option>
+              <option value="관계">관계/소통</option>
+            </select>
+          </div>
+          <div class="sim-row">
+            <button class="sim-btn btn-story" onclick="runSim('story')" id="btn-story">
+              📝 사연 생성
+            </button>
+            <button class="sim-btn btn-letter" onclick="runSim('letter')" id="btn-letter">
+              💌 편지 생성
+            </button>
+            <button class="sim-btn btn-dj" onclick="runSim('dj')" id="btn-dj" disabled>
+              🎙️ DJ 방송 생성
+            </button>
+            <button class="sim-btn btn-all" onclick="runSim('all')" id="btn-all">
+              ⚡ 전체 (사연+DJ)
+            </button>
+          </div>
+        </div>
+
+        <!-- 결과 영역 -->
+        <div class="result-area">
+          <div class="result-title">
+            <span>실행 결과</span>
+            <div class="result-status">
+              <div class="status-dot" id="status-dot"></div>
+              <span id="status-text" style="font-size:0.7rem;color:var(--muted);">대기 중</span>
+            </div>
+          </div>
+          <div class="result-text" id="result-text">페르소나를 선택하고 시뮬레이션을 실행하세요.</div>
+        </div>
+
+        <!-- 히스토리 -->
+        <div class="history-area">
+          <div class="result-title">
+            <span>이 페르소나 히스토리</span>
+            <span id="history-count" style="font-size:0.7rem;color:var(--muted);">0건</span>
+          </div>
+          <div class="history-list" id="history-list">
+            <div style="font-size:0.75rem;color:var(--muted);padding:0.5rem;">아직 기록 없음</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 배치 모달 -->
+<div class="modal-overlay" id="batch-modal">
+  <div class="modal">
+    <div class="modal-title">⚡ 배치 시뮬레이션</div>
+    <div class="modal-desc">여러 페르소나의 사연을 한 번에 자동 생성합니다. 과도한 API 비용이 발생할 수 있으니 소규모로 시작하세요.</div>
+    <div class="sim-row" style="margin-bottom:0.8rem;">
+      <select class="sim-select" id="batch-group">
+        <option value="all">전체 200명</option>
+        <option value="Leader">리더 20명</option>
+        <option value="General">당사자 80명</option>
+        <option value="Parent">부모 50명</option>
+        <option value="Worker">활동지원 50명</option>
+      </select>
+      <select class="sim-select" id="batch-count">
+        <option value="5">5명</option>
+        <option value="10">10명</option>
+        <option value="20">20명</option>
+        <option value="50">50명</option>
+      </select>
+      <select class="sim-select" id="batch-type">
+        <option value="story">사연만</option>
+        <option value="all">사연+DJ</option>
+      </select>
+    </div>
+    <div class="modal-progress" id="batch-progress" style="display:none;">
+      <div class="mp-label">
+        <span id="bp-label">준비 중...</span>
+        <span id="bp-pct">0%</span>
+      </div>
+      <div class="mp-bar"><div class="mp-fill" id="bp-fill"></div></div>
+      <div class="mp-log" id="bp-log"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="sim-btn" style="background:var(--muted);color:#000;" onclick="closeBatch()">닫기</button>
+      <button class="sim-btn btn-batch" id="batch-run-btn" onclick="runBatch()">▶ 배치 실행</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ADMIN_PW = 'radio1234';
+const BASE_URL = location.origin;
+
+// ── 페르소나 데이터 (참여자.xlsx에서 추출) ──
+const PERSONAS = [
+  {id:'P001',cat:'Leader',name:'김진우',gender:'M',age:54,disability:'지체장애(휠체어)',job:'장애인자립생활센터장',personality:'비판적/논리적',tone:'단호한 리더형',interest:'이동권/정책개선',digital:'High'},
+  {id:'P002',cat:'Leader',name:'박혜란',gender:'F',age:48,disability:'시각장애',job:'장애인연합회 이사',personality:'포용적/강단있음',tone:'우아하고 명확함',interest:'배리어프리 키오스크',digital:'Medium'},
+  {id:'P003',cat:'Leader',name:'이성훈',gender:'M',age:59,disability:'청각장애',job:'농아인협회 지부장',personality:'직설적/열정적',tone:'간결하고 힘있음',interest:'수어통역권 확보',digital:'Medium'},
+  {id:'P004',cat:'Leader',name:'최수진',gender:'F',age:42,disability:'뇌병변장애',job:'장애인인권단체 대표',personality:'활동적/사교적',tone:'밝고 열띤 목소리',interest:'장애인 고용 정책',digital:'High'},
+  {id:'P005',cat:'Leader',name:'정명호',gender:'M',age:51,disability:'지체장애(휠체어)',job:'당사자 단체 위원장',personality:'차분함/신중함',tone:'차분하고 신뢰감있음',interest:'정신건강복지법',digital:'Medium'},
+  {id:'P006',cat:'Leader',name:'한상희',gender:'F',age:45,disability:'신장장애',job:'신장장애인협회 사무국장',personality:'현실적/직설적',tone:'정확하고 단호함',interest:'투석 환자 이동권',digital:'High'},
+  {id:'P007',cat:'Leader',name:'고영한',gender:'M',age:56,disability:'지체장애(휠체어)',job:'지역 장애인 체육회장',personality:'낙천적/호탕함',tone:'크고 시원시원함',interest:'생활 체육 저변 확대',digital:'Medium'},
+  {id:'P008',cat:'Leader',name:'임미숙',gender:'F',age:49,disability:'지체장애(휠체어)',job:'부모연대 지부장',personality:'헌신적/강인함',tone:'절절하고 호소력있음',interest:'주간보호센터 확충',digital:'High'},
+  {id:'P009',cat:'Leader',name:'강동수',gender:'M',age:62,disability:'시각장애',job:'안마사협회 회장',personality:'보수적/책임감',tone:'격식있고 중후함',interest:'안마사 생존권',digital:'Low'},
+  {id:'P010',cat:'Leader',name:'조현정',gender:'F',age:39,disability:'청각장애',job:'장애인문화예술협회장',personality:'창의적/예민함',tone:'섬세하고 예술적임',interest:'배리어프리 영화 제작',digital:'High'},
+  {id:'P011',cat:'Leader',name:'배윤성',gender:'M',age:47,disability:'지체장애(휠체어)',job:'장애인기업협회장',personality:'전략적/도전적',tone:'빠르고 사무적임',interest:'장애인 창업 지원',digital:'High'},
+  {id:'P012',cat:'Leader',name:'송민호',gender:'M',age:53,disability:'뇌병변장애',job:'지역 인권센터 소장',personality:'분석적/침착함',tone:'낮고 논리적임',interest:'탈시설 지원 체계',digital:'Medium'},
+  {id:'P013',cat:'Leader',name:'유지애',gender:'F',age:44,disability:'정신장애',job:'사회적협동조합 이사장',personality:'부드러움/끈기',tone:'차분하고 다정함',interest:'직업 재활 모델',digital:'Medium'},
+  {id:'P014',cat:'Leader',name:'최현수',gender:'M',age:58,disability:'지체장애(휠체어)',job:'장애인 택시 기사 연합회장',personality:'경험중심/호탕함',tone:'친근한 아저씨 말투',interest:'장애인 전용 택시 증차',digital:'Medium'},
+  {id:'P015',cat:'Leader',name:'정지혜',gender:'F',age:41,disability:'시각장애',job:'점자도서관 관장',personality:'지적임/꼼꼼함',tone:'정중하고 조용함',interest:'대체자료 제작 속도',digital:'High'},
+  {id:'P016',cat:'Leader',name:'박준호',gender:'M',age:50,disability:'지체장애(휠체어)',job:'농아인 스포츠 연맹 이사',personality:'활동적/단호함',tone:'절도 있고 간결함',interest:'국제 데플림픽 지원',digital:'Medium'},
+  {id:'P017',cat:'Leader',name:'황수정',gender:'F',age:46,disability:'지체장애(휠체어)',job:'장애여성인권위 간사',personality:'비판적/예리함',tone:'날카롭고 논리적임',interest:'성폭력 예방 및 상담',digital:'High'},
+  {id:'P018',cat:'Leader',name:'이동익',gender:'M',age:55,disability:'지적장애',job:'자립생활회 회장',personality:'직설적/단순함',tone:'투박하지만 진심어림',interest:'활동지원 시간 확대',digital:'Low'},
+  {id:'P019',cat:'Leader',name:'서은영',gender:'F',age:43,disability:'지체장애(휠체어)',job:'장애인 자립 주택 운영자',personality:'개방적/사교적',tone:'밝고 에너제틱함',interest:'커뮤니티 케어',digital:'High'},
+  {id:'P020',cat:'Leader',name:'권오성',gender:'M',age:57,disability:'지체장애',job:'장애인 보조기기 센터장',personality:'공학적/분석적',tone:'건조하고 기술적임',interest:'첨단 보조기기 보급',digital:'High'},
+  {id:'P021',cat:'General',name:'이루다',gender:'F',age:24,disability:'발달장애(자폐)',job:'카페 바리스타',personality:'순수함/섬세함',tone:'짧고 명확한 어조',interest:'애니메이션/커피',digital:'High'},
+  {id:'P022',cat:'General',name:'최현수',gender:'M',age:31,disability:'청각장애',job:'IT 개발자',personality:'분석적/얼리어답터',tone:'트렌디하고 논리적',interest:'최신 가젯/재택근무',digital:'High'},
+  {id:'P023',cat:'General',name:'정경숙',gender:'F',age:67,disability:'뇌병변장애',job:'전업주부',personality:'따뜻함/인내심',tone:'차분하고 느릿함',interest:'노년 건강/손주 육아',digital:'Low'},
+  {id:'P024',cat:'General',name:'마이클',gender:'M',age:29,disability:'지체장애',job:'영어 강사',personality:'외향적/낙천적',tone:'활기찬 외국인 말투',interest:'여행/언어교환',digital:'High'},
+  {id:'P025',cat:'General',name:'한민지',gender:'F',age:35,disability:'신장장애',job:'웹 디자이너',personality:'현실적/꼼꼼함',tone:'담백하고 사무적',interest:'투석 생활/식단',digital:'High'},
+  {id:'P026',cat:'General',name:'조아라',gender:'F',age:19,disability:'시각장애',job:'대학 신입생',personality:'호기심/발랄함',tone:'통통 튀는 젊은 말투',interest:'캠퍼스/점자 도서',digital:'High'},
+  {id:'P027',cat:'General',name:'강도윤',gender:'M',age:42,disability:'정신장애',job:'프리랜서 작가',personality:'사색적/조심스러움',tone:'시적이고 조용함',interest:'편견 극복/문학',digital:'Medium'},
+  {id:'P028',cat:'General',name:'이영희',gender:'F',age:72,disability:'지체장애',job:'은퇴 공무원',personality:'고집있음/정적임',tone:'격식 있는 할머니 말투',interest:'복지관 프로그램',digital:'Low'},
+  {id:'P029',cat:'General',name:'박상민',gender:'M',age:27,disability:'청각장애',job:'그래픽 디자이너',personality:'감각적/조용함',tone:'짧고 핵심만 말함',interest:'전시회/자막 방송',digital:'High'},
+  {id:'P030',cat:'General',name:'신미소',gender:'F',age:21,disability:'발달장애(지적)',job:'제과제빵 보조',personality:'밝음/해맑음',tone:'아이 같은 말투',interest:'빵 굽기/노래 부르기',digital:'Medium'},
+  {id:'P031',cat:'General',name:'유승호',gender:'M',age:34,disability:'뇌병변장애',job:'공공기관 인턴',personality:'도전적/신중함',tone:'느릿하지만 정확함',interest:'공무원 시험/운동',digital:'High'},
+  {id:'P032',cat:'General',name:'김지혜',gender:'F',age:46,disability:'지체장애',job:'재택 타이피스트',personality:'현실적/냉소적',tone:'무심한 듯한 말투',interest:'물가/배달 음식',digital:'High'},
+  {id:'P033',cat:'General',name:'박건우',gender:'M',age:23,disability:'시각장애',job:'음대생(피아노)',personality:'예술적/낭만적',tone:'감성적이고 정중함',interest:'음악회/음성 읽기 앱',digital:'High'},
+  {id:'P034',cat:'General',name:'윤나래',gender:'F',age:38,disability:'청각장애',job:'주부/유튜버',personality:'적극적/사교적',tone:'활기차고 이모지 많음',interest:'아이 육아/수어 브이로그',digital:'High'},
+  {id:'P035',cat:'General',name:'이재용',gender:'M',age:50,disability:'심장장애',job:'자영업',personality:'조심스러움/꼼꼼함',tone:'차분하고 낮은 목소리',interest:'건강 관리/정부 보조금',digital:'Medium'},
+  {id:'P036',cat:'General',name:'최은주',gender:'F',age:29,disability:'지체장애',job:'프리랜서 마케터',personality:'사교적/야심가',tone:'자신감 있고 세련됨',interest:'데이트/해외 여행',digital:'High'},
+  {id:'P037',cat:'General',name:'김민석',gender:'M',age:15,disability:'발달장애(자폐)',job:'학생',personality:'독특함/집요함',tone:'반복적이고 단조로움',interest:'기차 시간표/우주',digital:'Medium'},
+  {id:'P038',cat:'General',name:'정해인',gender:'F',age:33,disability:'뇌병변장애',job:'네일 아티스트',personality:'섬세함/밝음',tone:'다정하고 높은 톤',interest:'네일 아트/반려견',digital:'High'},
+  {id:'P039',cat:'General',name:'박철수',gender:'M',age:68,disability:'지체장애',job:'무직',personality:'외로움/투덜댐',tone:'거칠지만 정이 있음',interest:'장기/TV 뉴스',digital:'Low'},
+  {id:'P040',cat:'General',name:'이진아',gender:'F',age:44,disability:'시각장애',job:'사회복지사',personality:'이성적/공감형',tone:'부드럽고 신뢰감 있음',interest:'상담 사례/독서',digital:'High'},
+  {id:'P041',cat:'General',name:'강동혁',gender:'M',age:31,disability:'정신장애',job:'편의점 스태프',personality:'성실함/불안함',tone:'조심스럽고 짧음',interest:'아르바이트/약 복용',digital:'Medium'},
+  {id:'P042',cat:'General',name:'오세훈',gender:'M',age:25,disability:'청각장애',job:'대학생',personality:'활동적/긍정적',tone:'패기 있고 명쾌함',interest:'축구/게임',digital:'High'},
+  {id:'P043',cat:'General',name:'서유리',gender:'F',age:36,disability:'지체장애',job:'작가',personality:'성찰적/예리함',tone:'문학적이고 차분함',interest:'에세이/심리학',digital:'High'},
+  {id:'P044',cat:'General',name:'장민호',gender:'M',age:41,disability:'뇌병변장애',job:'데이터 라벨러',personality:'차분함/끈기',tone:'낮고 느린 어조',interest:'AI 기술/경제 뉴스',digital:'High'},
+  {id:'P045',cat:'General',name:'임수진',gender:'F',age:22,disability:'발달장애(지적)',job:'임가공 작업장',personality:'명랑함/단순함',tone:'귀여운 말투',interest:'좋아하는 연애 예능',digital:'Medium'},
+  {id:'P046',cat:'General',name:'고진호',gender:'M',age:52,disability:'간장애',job:'경비원',personality:'성실함/묵묵함',tone:'짧고 투박함',interest:'가족 걱정/건강 정보',digital:'Low'},
+  {id:'P047',cat:'General',name:'배미경',gender:'F',age:58,disability:'시각장애',job:'전화 상담원',personality:'친절함/노련함',tone:'안정감 있는 목소리',interest:'트로트/요리 레시피',digital:'Medium'},
+  {id:'P048',cat:'General',name:'송민경',gender:'F',age:26,disability:'청각장애',job:'꽃집 운영',personality:'감성적/조용함',tone:'서정적이고 예의 바름',interest:'꽃말/인테리어',digital:'High'},
+  {id:'P049',cat:'General',name:'박지훈',gender:'M',age:33,disability:'지체장애',job:'공공근로',personality:'현실적/무덤덤',tone:'담백하고 짧음',interest:'스포츠 중계/주식',digital:'Medium'},
+  {id:'P050',cat:'General',name:'류현아',gender:'F',age:41,disability:'안면장애',job:'강사',personality:'당당함/지적임',tone:'지적이고 명확함',interest:'인권 강의/메이크업',digital:'High'},
+  {id:'P051',cat:'General',name:'이동욱',gender:'M',age:48,disability:'뇌병변장애',job:'전기 기사',personality:'직업의식/꼼꼼함',tone:'느리지만 논리적임',interest:'기계 수리/낚시',digital:'Medium'},
+  {id:'P052',cat:'General',name:'한예슬',gender:'F',age:23,disability:'발달장애(자폐)',job:'도서관 보조',personality:'성실함/순수함',tone:'반듯하고 딱딱함',interest:'도서 정리/클래식',digital:'High'},
+  {id:'P053',cat:'General',name:'강승우',gender:'M',age:27,disability:'시각장애',job:'컴퓨터 강사',personality:'유머러스/활기참',tone:'농담을 즐기는 말투',interest:'유튜브 제작/IT 기기',digital:'High'},
+  {id:'P054',cat:'General',name:'유지민',gender:'F',age:30,disability:'지체장애',job:'액세서리 디자이너',personality:'화려함/사교적',tone:'생동감 넘치는 말투',interest:'패션 트렌드/전시',digital:'High'},
+  {id:'P055',cat:'General',name:'김태호',gender:'M',age:61,disability:'청각장애',job:'은퇴 기술자',personality:'신중함/보수적',tone:'수식어가 없는 문체',interest:'목공/산행',digital:'Low'},
+  {id:'P056',cat:'General',name:'최지우',gender:'F',age:18,disability:'지체장애',job:'고등학생',personality:'발랄함/감성적',tone:'급식체 섞인 젊은 말투',interest:'아이돌/입시 고민',digital:'High'},
+  {id:'P057',cat:'General',name:'윤성현',gender:'M',age:39,disability:'정신장애',job:'프리랜서 번역가',personality:'지적임/예민함',tone:'정확하고 예의 바름',interest:'외국 문학/철학',digital:'High'},
+  {id:'P058',cat:'General',name:'오다솜',gender:'F',age:25,disability:'뇌병변장애',job:'웹툰 작가 망생',personality:'창의적/엉뚱함',tone:'귀엽고 톡톡 튐',interest:'웹툰/태블릿 PC',digital:'High'},
+  {id:'P059',cat:'General',name:'정우성',gender:'M',age:45,disability:'신장장애',job:'운전기사',personality:'현실적/차분함',tone:'담담한 아저씨 말투',interest:'교통 소식/병원 정보',digital:'Medium'},
+  {id:'P060',cat:'General',name:'이미란',gender:'F',age:52,disability:'지체장애',job:'뜨개질 강사',personality:'다정함/섬세함',tone:'부드러운 이모 말투',interest:'뜨개질 패턴/육아 상담',digital:'Medium'},
+  {id:'P061',cat:'General',name:'백종현',gender:'M',age:34,disability:'청각장애',job:'카페 운영',personality:'열정적/성실함',tone:'명확하고 짧은 문장',interest:'로스팅 비법/운동',digital:'High'},
+  {id:'P062',cat:'General',name:'서지연',gender:'F',age:29,disability:'발달장애(지적)',job:'마트 진열원',personality:'착함/단순함',tone:'반복적인 종결 어미',interest:'마트 할인 정보',digital:'Medium'},
+  {id:'P063',cat:'General',name:'고은아',gender:'F',age:37,disability:'시각장애',job:'피아노 조율사',personality:'절대음감/차분함',tone:'우아하고 안정적임',interest:'소리에 대한 감각',digital:'High'},
+  {id:'P064',cat:'General',name:'박성진',gender:'M',age:22,disability:'지체장애',job:'대학생',personality:'도전적/활기참',tone:'에너지 넘치는 말투',interest:'휠체어 농구/연애',digital:'High'},
+  {id:'P065',cat:'General',name:'송지효',gender:'F',age:46,disability:'호흡기장애',job:'재택 업무',personality:'내향적/조용함',tone:'속삭이는 듯한 어조',interest:'공기 청정/독서',digital:'Medium'},
+  {id:'P066',cat:'General',name:'조수미',gender:'F',age:59,disability:'뇌병변장애',job:'전업주부',personality:'인내심/다정함',tone:'다정한 어머니 말투',interest:'가족 요리/종교 활동',digital:'Low'},
+  {id:'P067',cat:'General',name:'이종혁',gender:'M',age:42,disability:'지체장애',job:'쇼핑몰 운영',personality:'수완좋음/적극적',tone:'자신감 있고 빠름',interest:'e커머스/재테크',digital:'High'},
+  {id:'P068',cat:'General',name:'한가인',gender:'F',age:31,disability:'시각장애',job:'사회복지 전공생',personality:'열정적/지적임',tone:'논리적이고 밝음',interest:'장애인 권익/봉사',digital:'High'},
+  {id:'P069',cat:'General',name:'강동원',gender:'M',age:28,disability:'청각장애',job:'유튜버',personality:'낙천적/유머러스',tone:'재치 있고 유쾌함',interest:'영상 편집/여행 브이로그',digital:'High'},
+  {id:'P070',cat:'General',name:'최민식',gender:'M',age:64,disability:'지체장애',job:'무직',personality:'허허실실/넉살',tone:'호탕하고 정겨운 말투',interest:'옛날 이야기/등산',digital:'Low'},
+  {id:'P071',cat:'General',name:'심은하',gender:'F',age:50,disability:'신장장애',job:'보험설계사',personality:'치밀함/열심히삼',tone:'신뢰감 있는 어조',interest:'보험 정보/맛집 탐방',digital:'Medium'},
+  {id:'P072',cat:'General',name:'장동건',gender:'M',age:47,disability:'뇌병변장애',job:'공공기관',personality:'원칙적/성실함',tone:'정중하고 바른 말투',interest:'행정 절차/공익 활동',digital:'High'},
+  {id:'P073',cat:'General',name:'김혜수',gender:'F',age:43,disability:'정신장애',job:'원예 치료사',personality:'공감능력/따뜻함',tone:'치유적이고 부드러움',interest:'화초 키우기/명상',digital:'Medium'},
+  {id:'P074',cat:'General',name:'이병헌',gender:'M',age:38,disability:'지체장애',job:'프로게이머',personality:'승부욕/과묵함',tone:'짧고 강한 말투',interest:'e스포츠/장비 리뷰',digital:'High'},
+  {id:'P075',cat:'General',name:'손예진',gender:'F',age:24,disability:'발달장애(자폐)',job:'정리 수납원',personality:'깔끔함/고집있음',tone:'단호하고 규칙적임',interest:'정리 정돈/사진 찍기',digital:'High'},
+  {id:'P076',cat:'General',name:'현빈',gender:'M',age:36,disability:'시각장애',job:'바리스타',personality:'세련됨/매너',tone:'부드럽고 젠틀함',interest:'원두 산지/재즈 음악',digital:'High'},
+  {id:'P077',cat:'General',name:'전지현',gender:'F',age:32,disability:'청각장애',job:'쇼핑몰 모델',personality:'자신감/밝음',tone:'활기차고 패셔너블함',interest:'화장품/코디법',digital:'High'},
+  {id:'P078',cat:'General',name:'정우성B',gender:'M',age:55,disability:'지체장애',job:'경비',personality:'무뚝뚝/성실함',tone:'투박하고 짧음',interest:'날씨/건강 관리',digital:'Low'},
+  {id:'P079',cat:'General',name:'김태희',gender:'F',age:27,disability:'뇌병변장애',job:'대학원생',personality:'지적임/열정적',tone:'학구적이고 차분함',interest:'심리학/인공지능',digital:'High'},
+  {id:'P080',cat:'General',name:'조인성',gender:'M',age:33,disability:'간장애',job:'프리랜서',personality:'긍정적/사교적',tone:'유쾌하고 가벼운 말투',interest:'친구 모임/영화',digital:'High'},
+  {id:'P081',cat:'General',name:'공효진',gender:'F',age:39,disability:'지체장애',job:'수공예 작가',personality:'독특함/자유로움',tone:'편안하고 감성적인 말투',interest:'빈티지/환경 보호',digital:'Medium'},
+  {id:'P082',cat:'General',name:'유재석A',gender:'M',age:51,disability:'청각장애',job:'강사',personality:'친절함/말많음',tone:'매우 사교적이고 밝음',interest:'소통법/자기 계발',digital:'High'},
+  {id:'P083',cat:'General',name:'강호동A',gender:'M',age:49,disability:'지체장애',job:'체육관 운영',personality:'에너지/단순함',tone:'우렁차고 힘있는 말투',interest:'장애인 유도/보양식',digital:'Medium'},
+  {id:'P084',cat:'General',name:'이효리A',gender:'F',age:44,disability:'정신장애',job:'요가 강사',personality:'자유로운 영혼',tone:'철학적이고 담백함',interest:'요가/유기견 봉사',digital:'High'},
+  {id:'P085',cat:'General',name:'비A',gender:'M',age:41,disability:'뇌병변장애',job:'댄스 스포츠 선수',personality:'열정/성실',tone:'강렬하고 파이팅 넘침',interest:'휠체어 댄스/자기 관리',digital:'High'},
+  {id:'P086',cat:'General',name:'수지A',gender:'F',age:25,disability:'발달장애(지적)',job:'플로리스트',personality:'순수/상냥',tone:'친절하고 예의 바름',interest:'꽃꽂이/동화책',digital:'Medium'},
+  {id:'P087',cat:'General',name:'박보검A',gender:'M',age:29,disability:'시각장애',job:'사회복지사',personality:'밝음/바름',tone:'매우 정중하고 맑음',interest:'봉사 활동/음성 도서',digital:'High'},
+  {id:'P088',cat:'General',name:'아이유A',gender:'F',age:30,disability:'지체장애',job:'싱어송라이터',personality:'감수성/사색적',tone:'차분하고 감성적임',interest:'작사/밤하늘 관찰',digital:'High'},
+  {id:'P089',cat:'General',name:'지드래곤A',gender:'M',age:37,disability:'청각장애',job:'패션 디자이너',personality:'개성적/시크함',tone:'짧고 강렬한 말투',interest:'스트릿 패션/전시',digital:'High'},
+  {id:'P090',cat:'General',name:'김연아A',gender:'F',age:34,disability:'지체장애',job:'코치',personality:'단단함/우아함',tone:'침착하고 설득력 있음',interest:'스포츠 심리/다이어트',digital:'High'},
+  {id:'P091',cat:'General',name:'박서준A',gender:'M',age:35,disability:'뇌병변장애',job:'회사원',personality:'성실/쾌활',tone:'에너지 있고 신뢰감 있음',interest:'직장 생활 팁/야구',digital:'High'},
+  {id:'P092',cat:'General',name:'한효주A',gender:'F',age:36,disability:'시각장애',job:'점자 교정사',personality:'섬세/신중',tone:'정확하고 따뜻함',interest:'점자 교육/차 마시기',digital:'High'},
+  {id:'P093',cat:'General',name:'공유A',gender:'M',age:46,disability:'지체장애',job:'카페 주인',personality:'여유/낭만',tone:'나긋나긋하고 부드러움',interest:'커피 향기/LP 감상',digital:'Medium'},
+  {id:'P094',cat:'General',name:'김수현A',gender:'M',age:32,disability:'발달장애(자폐)',job:'데이터 정렬',personality:'고집/정확',tone:'논리적이고 기계적임',interest:'데이터 사이언스',digital:'High'},
+  {id:'P095',cat:'General',name:'박신혜A',gender:'F',age:33,disability:'청각장애',job:'수어 통역사',personality:'적극적/밝음',tone:'표현이 풍부한 말투',interest:'수어 노래/문화 행사',digital:'High'},
+  {id:'P096',cat:'General',name:'송중기A',gender:'M',age:38,disability:'뇌병변장애',job:'법무사 보조',personality:'스마트/단호',tone:'이지적이고 깔끔함',interest:'법률 상식/경제',digital:'High'},
+  {id:'P097',cat:'General',name:'신민아A',gender:'F',age:39,disability:'지체장애',job:'일러스트레이터',personality:'사랑스러움',tone:'발랄하고 다정함',interest:'드로잉/여행 일기',digital:'High'},
+  {id:'P098',cat:'General',name:'남주혁A',gender:'M',age:30,disability:'시각장애',job:'특수교사',personality:'바름/따뜻함',tone:'진중하고 차분함',interest:'아이들 교육/운동',digital:'High'},
+  {id:'P099',cat:'General',name:'김고은A',gender:'F',age:33,disability:'정신장애',job:'도서관원',personality:'은은함/사색적',tone:'문학적인 비유가 많음',interest:'고전 소설/산책',digital:'Medium'},
+  {id:'P100',cat:'General',name:'마동석A',gender:'M',age:52,disability:'지체장애',job:'체육관 관장',personality:'듬직함/츤데레',tone:'거칠지만 따뜻한 말투',interest:'웨이트 트레이닝',digital:'Low'},
+  {id:'P101',cat:'Parent',name:'한지원',gender:'F',age:38,disability:'발달장애아 부모',job:'프리랜서',personality:'걱정많음/정보탐색',tone:'조심스럽고 진지함',interest:'특수교육/재활',digital:'High'},
+  {id:'P102',cat:'Parent',name:'강민구',gender:'M',age:45,disability:'뇌병변아 부모',job:'공무원',personality:'책임감/활동적',tone:'든든하고 따뜻함',interest:'장애인 스포츠/돌봄',digital:'Medium'},
+  {id:'P103',cat:'Parent',name:'오윤희',gender:'F',age:52,disability:'자폐성 성인자녀 부모',job:'전업주부',personality:'강인함/현실적',tone:'담담한 생활형 어투',interest:'자립/성인기 취업',digital:'Medium'},
+  {id:'P104',cat:'Parent',name:'신영자',gender:'F',age:63,disability:'지체장애 자녀 부모',job:'소상공인',personality:'애틋함/노련함',tone:'노련하고 정겨움',interest:'부모 사후/독립',digital:'Low'},
+  {id:'P105',cat:'Parent',name:'최미경',gender:'F',age:41,disability:'청각장애 자녀 부모',job:'보험설계사',personality:'적극적/사교적',tone:'빠르고 시원시원함',interest:'인공와우/통합교육',digital:'High'},
+  {id:'P106',cat:'Parent',name:'임호진',gender:'M',age:48,disability:'시각장애 자녀 부모',job:'회사원',personality:'성실/차분',tone:'진중하고 논리적임',interest:'점자 교육/미래 설계',digital:'High'},
+  {id:'P107',cat:'Parent',name:'조민수',gender:'F',age:44,disability:'지체장애 자녀 부모',job:'가게 운영',personality:'활발/강함',tone:'씩씩하고 쾌활함',interest:'휠체어 여행/맛집',digital:'Medium'},
+  {id:'P108',cat:'Parent',name:'서정아',gender:'F',age:36,disability:'발달장애아 부모',job:'작가',personality:'섬세/예민',tone:'감성적이고 성찰적임',interest:'자녀 기록/그림책',digital:'High'},
+  {id:'P109',cat:'Parent',name:'김철수',gender:'M',age:50,disability:'뇌병변 자녀 부모',job:'자영업',personality:'무뚝뚝/따뜻함',tone:'투박하고 정 많은 말투',interest:'재활 병원 정보',digital:'Low'},
+  {id:'P110',cat:'Parent',name:'박영희',gender:'F',age:55,disability:'청각장애 자녀 부모',job:'전업주부',personality:'사교적/수다쟁이',tone:'말이 많고 에너제틱함',interest:'수어 커뮤니티',digital:'Medium'},
+  {id:'P111',cat:'Parent',name:'윤석호',gender:'M',age:46,disability:'발달장애 자녀 부모',job:'엔지니어',personality:'분석적/침착',tone:'기술적이고 객관적임',interest:'보조공학/앱 추천',digital:'High'},
+  {id:'P112',cat:'Parent',name:'이선주',gender:'F',age:39,disability:'지체장애 자녀 부모',job:'웹디자이너',personality:'창의적/밝음',tone:'세련되고 감각적인 말투',interest:'패션/인테리어',digital:'High'},
+  {id:'P113',cat:'Parent',name:'황보라',gender:'F',age:42,disability:'뇌병변 자녀 부모',job:'강사',personality:'당당/직설',tone:'명확하고 자신감 있음',interest:'인권 교육/차별 대응',digital:'High'},
+  {id:'P114',cat:'Parent',name:'최동욱',gender:'M',age:47,disability:'시각장애 자녀 부모',job:'은행원',personality:'치밀/꼼꼼',tone:'정중하고 조심스러움',interest:'재테크/교육 보험',digital:'High'},
+  {id:'P115',cat:'Parent',name:'정미라',gender:'F',age:49,disability:'자폐 자녀 부모',job:'요리사',personality:'손맛/다정',tone:'포근하고 다정한 말투',interest:'편식 교정 레시피',digital:'Medium'},
+  {id:'P116',cat:'Parent',name:'강수연',gender:'F',age:53,disability:'지체장애 자녀 부모',job:'사회복지사',personality:'사명감/활동적',tone:'열정적이고 호소력 있음',interest:'사회 제도/복지 서비스',digital:'High'},
+  {id:'P117',cat:'Parent',name:'백승호',gender:'M',age:51,disability:'청각장애 자녀 부모',job:'공인중개사',personality:'수완좋음/현실적',tone:'호탕하고 시원함',interest:'부동산 정보/자녀 결혼',digital:'Medium'},
+  {id:'P118',cat:'Parent',name:'유지현',gender:'F',age:37,disability:'발달장애아 부모',job:'프리랜서 번역가',personality:'학구적/조용',tone:'이지적이고 차분함',interest:'해외 논문/치료법',digital:'High'},
+  {id:'P119',cat:'Parent',name:'안성기A',gender:'M',age:65,disability:'지체장애 자녀 부모',job:'은퇴',personality:'인자함/넉넉',tone:'느긋하고 여유로운 말투',interest:'노년의 지혜/가족애',digital:'Low'},
+  {id:'P120',cat:'Parent',name:'고두심A',gender:'F',age:62,disability:'뇌병변 자녀 부모',job:'전업주부',personality:'인내심/애틋',tone:'따뜻한 어머니 말투',interest:'전통 요리/종교',digital:'Low'},
+  {id:'P121',cat:'Parent',name:'이보영A',gender:'F',age:40,disability:'발달장애아 부모',job:'교사',personality:'논리적/교육적',tone:'단정하고 정확함',interest:'학교 생활/학습법',digital:'High'},
+  {id:'P122',cat:'Parent',name:'지성A',gender:'M',age:43,disability:'지체장애 자녀 부모',job:'회사원',personality:'다정/책임감',tone:'부드러운 아빠 말투',interest:'주말 캠핑/이동 수단',digital:'High'},
+  {id:'P123',cat:'Parent',name:'한지민A',gender:'F',age:38,disability:'시각장애 자녀 부모',job:'봉사자',personality:'공감/따뜻함',tone:'매우 친절하고 상냥함',interest:'독서 봉사/여행',digital:'High'},
+  {id:'P124',cat:'Parent',name:'김태리A',gender:'F',age:32,disability:'발달장애아 부모',job:'예술가',personality:'자유/독특',tone:'생기 넘치고 개성 있음',interest:'미술 치료/자연',digital:'High'},
+  {id:'P125',cat:'Parent',name:'남궁민A',gender:'M',age:45,disability:'뇌병변 자녀 부모',job:'PD',personality:'트렌디/치밀',tone:'깔끔하고 감각적임',interest:'대중문화/최신 정보',digital:'High'},
+  {id:'P126',cat:'Parent',name:'박은빈A',gender:'F',age:31,disability:'발달장애아 부모',job:'변호사',personality:'스마트/단호',tone:'이지적이고 논리적임',interest:'장애인법/상담',digital:'High'},
+  {id:'P127',cat:'Parent',name:'강기영A',gender:'M',age:42,disability:'지체장애 자녀 부모',job:'영업직',personality:'유머/사교적',tone:'유쾌하고 활기찬 말투',interest:'동호회/자동차',digital:'High'},
+  {id:'P128',cat:'Parent',name:'라미란A',gender:'F',age:48,disability:'청각장애 자녀 부모',job:'시장상인',personality:'생활력/호탕',tone:'거칠지만 정겨움',interest:'인생 상담/요리',digital:'Medium'},
+  {id:'P129',cat:'Parent',name:'진선규A',gender:'M',age:46,disability:'발달장애 자녀 부모',job:'배우',personality:'감성/순수',tone:'착하고 정이 많은 말투',interest:'연극/자아 존중감',digital:'High'},
+  {id:'P130',cat:'Parent',name:'김해숙A',gender:'F',age:68,disability:'지체장애 자녀 부모',job:'은퇴',personality:'헌신/전통',tone:'깊이 있고 따뜻함',interest:'가문/전통 음식',digital:'Low'},
+  {id:'P131',cat:'Parent',name:'성동일A',gender:'M',age:57,disability:'뇌병변 자녀 부모',job:'자영업',personality:'현실/유머',tone:'츤데레 같은 말투',interest:'자식 자랑/술 한잔',digital:'Low'},
+  {id:'P132',cat:'Parent',name:'이정은A',gender:'F',age:53,disability:'발달장애 자녀 부모',job:'가사 도우미',personality:'성실/다정',tone:'친근하고 편안한 말투',interest:'살림 노하우',digital:'Medium'},
+  {id:'P133',cat:'Parent',name:'엄정화A',gender:'F',age:54,disability:'시각장애 자녀 부모',job:'가수',personality:'화려/열정',tone:'활기차고 긍정적임',interest:'무대/자기 관리',digital:'High'},
+  {id:'P134',cat:'Parent',name:'조진웅A',gender:'M',age:49,disability:'지체장애 자녀 부모',job:'정비사',personality:'강함/의리',tone:'우렁차고 듬직함',interest:'남자의 취미/정비',digital:'Medium'},
+  {id:'P135',cat:'Parent',name:'김희애A',gender:'F',age:57,disability:'청각장애 자녀 부모',job:'전업주부',personality:'우아/지적',tone:'품격 있고 차분함',interest:'인테리어/클래식',digital:'Medium'},
+  {id:'P136',cat:'Parent',name:'정해인A',gender:'M',age:36,disability:'발달장애아 부모',job:'회사원',personality:'바름/신중',tone:'정중하고 조용한 말투',interest:'아이와 산책/육아템',digital:'High'},
+  {id:'P137',cat:'Parent',name:'박소담A',gender:'F',age:33,disability:'뇌병변 자녀 부모',job:'대학원생',personality:'학구적/활발',tone:'생생하고 명쾌함',interest:'연구 자료/육아 병행',digital:'High'},
+  {id:'P138',cat:'Parent',name:'유해진A',gender:'M',age:53,disability:'지체장애 자녀 부모',job:'등산가이드',personality:'자연/소박',tone:'소탈하고 재치 있음',interest:'산행/명언',digital:'Medium'},
+  {id:'P139',cat:'Parent',name:'윤여정A',gender:'F',age:76,disability:'지체장애 성인자녀 부모',job:'은퇴',personality:'쿨함/지적',tone:'세련되고 직설적임',interest:'인생 조언/미니멀리즘',digital:'Low'},
+  {id:'P140',cat:'Parent',name:'신구A',gender:'M',age:87,disability:'지체장애 노년자녀 부모',job:'무직',personality:'인자/원로',tone:'느릿하고 깊이 있음',interest:'옛 추억/가족의 의미',digital:'Low'},
+  {id:'P141',cat:'Parent',name:'송강호A',gender:'M',age:57,disability:'발달장애 자녀 부모',job:'택시기사',personality:'서민적/넉살',tone:'정겹고 소박한 말투',interest:'세상 돌아가는 이야기',digital:'Low'},
+  {id:'P142',cat:'Parent',name:'김영애A',gender:'F',age:60,disability:'뇌병변 자녀 부모',job:'한복집 운영',personality:'정갈/우아',tone:'차분하고 고전적임',interest:'예절/한복 공예',digital:'Low'},
+  {id:'P143',cat:'Parent',name:'류승룡A',gender:'M',age:54,disability:'지체장애 자녀 부모',job:'치킨집 운영',personality:'유머/생활력',tone:'유쾌하고 시끄러움',interest:'장사 비결/가족 사랑',digital:'Medium'},
+  {id:'P144',cat:'Parent',name:'황정민A',gender:'M',age:53,disability:'시각장애 자녀 부모',job:'목수',personality:'장인/투박',tone:'거칠지만 따스함',interest:'가구 제작/정직',digital:'Low'},
+  {id:'P145',cat:'Parent',name:'전도연A',gender:'F',age:51,disability:'발달장애 자녀 부모',job:'학원 강사',personality:'섬세/완벽주의',tone:'정확하고 열정적임',interest:'교육 정보/자기 계발',digital:'High'},
+  {id:'P146',cat:'Parent',name:'하정우A',gender:'M',age:46,disability:'뇌병변 자녀 부모',job:'화가',personality:'예술/자유',tone:'여유롭고 위트 있음',interest:'그림 그리기/먹방',digital:'High'},
+  {id:'P147',cat:'Parent',name:'손석구A',gender:'M',age:41,disability:'지체장애 자녀 부모',job:'사업가',personality:'시크/현실적',tone:'짧고 임팩트 있는 말투',interest:'비즈니스/운동',digital:'High'},
+  {id:'P148',cat:'Parent',name:'김혜자A',gender:'F',age:82,disability:'발달장애 노년자녀 부모',job:'무직',personality:'천사/애틋',tone:'너무나 다정하고 맑음',interest:'신앙/기도',digital:'Low'},
+  {id:'P149',cat:'Parent',name:'이순재A',gender:'M',age:89,disability:'지체장애 노년자녀 부모',job:'무직',personality:'엄격/바름',tone:'호통치듯 올바른 말투',interest:'근면 성실/역사',digital:'Low'},
+  {id:'P150',cat:'Parent',name:'나문희A',gender:'F',age:83,disability:'뇌병변 성인자녀 부모',job:'무직',personality:'유쾌/긍정',tone:'익살스럽고 정겨운 말투',interest:'소소한 행복/간식',digital:'Low'},
+  {id:'P151',cat:'Worker',name:'이명숙',gender:'F',age:55,disability:'활동지원(베테랑)',job:'활동지원사',personality:'능숙함/다정함',tone:'다정하고 노련함',interest:'갈등관리/조리법',digital:'Medium'},
+  {id:'P152',cat:'Worker',name:'박수지',gender:'F',age:26,disability:'활동지원(신입)',job:'취준생',personality:'쾌활함/트렌디',tone:'에너지 넘치는 말투',interest:'MZ소통/일상우정',digital:'High'},
+  {id:'P153',cat:'Worker',name:'장철호',gender:'M',age:42,disability:'활동지원(남성)',job:'전직 자영업자',personality:'과묵함/성실함',tone:'신뢰감 있는 저음',interest:'노동환경/보조공학',digital:'Medium'},
+  {id:'P154',cat:'Worker',name:'김민아',gender:'F',age:31,disability:'활동지원(예술)',job:'예술치료사',personality:'창의적/공감형',tone:'부드러운 공감형',interest:'예술소통/심리',digital:'High'},
+  {id:'P155',cat:'Worker',name:'황태섭',gender:'M',age:61,disability:'활동지원(고령)',job:'퇴직 공직자',personality:'보수적/책임감',tone:'격식있고 진중함',interest:'노노케어/직업의식',digital:'Low'},
+  {id:'P156',cat:'Worker',name:'최윤영',gender:'F',age:34,disability:'활동지원(중간)',job:'전업주부 겸업',personality:'꼼꼼/사교적',tone:'친근한 수다쟁이',interest:'가사 꿀팁/장보기',digital:'Medium'},
+  {id:'P157',cat:'Worker',name:'강도훈',gender:'M',age:28,disability:'활동지원(신입)',job:'대학원생',personality:'이지적/냉철함',tone:'논리적이고 깔끔함',interest:'학업 병행/시간 관리',digital:'High'},
+  {id:'P158',cat:'Worker',name:'임지혜',gender:'F',age:45,disability:'활동지원(중간)',job:'프리랜서',personality:'적극적/밝음',tone:'시원시원한 목소리',interest:'지역 복지 정보',digital:'High'},
+  {id:'P159',cat:'Worker',name:'송민지',gender:'F',age:23,disability:'활동지원(신입)',job:'휴학생',personality:'발랄/순수',tone:'귀엽고 싹싹함',interest:'이용자와 게임하기',digital:'High'},
+  {id:'P160',cat:'Worker',name:'조현식',gender:'M',age:38,disability:'활동지원(중간)',job:'이직준비중',personality:'침착/성실',tone:'안정적이고 조용함',interest:'신체 보조 노하우',digital:'Medium'},
+  {id:'P161',cat:'Worker',name:'박미옥',gender:'F',age:52,disability:'활동지원(베테랑)',job:'요양보호사 겸직',personality:'강인/포근',tone:'엄마 같은 따뜻함',interest:'건강 식단/마사지',digital:'Medium'},
+  {id:'P162',cat:'Worker',name:'윤준호',gender:'M',age:33,disability:'활동지원(신입)',job:'뮤지션',personality:'감성/낙천적',tone:'자유롭고 유쾌함',interest:'음악 치료/산책',digital:'High'},
+  {id:'P163',cat:'Worker',name:'한나영',gender:'F',age:29,disability:'활동지원(신입)',job:'웹디자이너',personality:'조용/섬세',tone:'차분하고 상냥함',interest:'태블릿 활용 소통',digital:'High'},
+  {id:'P164',cat:'Worker',name:'정동수',gender:'M',age:47,disability:'활동지원(중간)',job:'전직 운동선수',personality:'열정/파이팅',tone:'활기차고 씩씩함',interest:'휠체어 운동 보조',digital:'Medium'},
+  {id:'P165',cat:'Worker',name:'유은경',gender:'F',age:50,disability:'활동지원(베테랑)',job:'사회복지사 자격',personality:'전문적/상냥',tone:'조목조목 설명하는 말투',interest:'복지 제도 가이드',digital:'High'},
+  {id:'P166',cat:'Worker',name:'배성철',gender:'M',age:58,disability:'활동지원(고령)',job:'전직 운전기사',personality:'성실/안전',tone:'차분하고 조심스러움',interest:'안전한 차량 이동',digital:'Low'},
+  {id:'P167',cat:'Worker',name:'송혜교A',gender:'F',age:42,disability:'활동지원(중간)',job:'전업주부',personality:'세련/다정',tone:'나긋나긋하고 우아함',interest:'코디 도움/대화 상대',digital:'Medium'},
+  {id:'P168',cat:'Worker',name:'공유B',gender:'M',age:45,disability:'활동지원(중간)',job:'바리스타',personality:'여유/훈훈',tone:'부드러운 카페 오빠 톤',interest:'커피 타임/산책',digital:'High'},
+  {id:'P169',cat:'Worker',name:'한지민B',gender:'F',age:37,disability:'활동지원(중간)',job:'간호사 출신',personality:'신중/꼼꼼',tone:'안정감 있는 말투',interest:'투약 관리/응급 처치',digital:'High'},
+  {id:'P170',cat:'Worker',name:'박서준B',gender:'M',age:32,disability:'활동지원(신입)',job:'배우 지망생',personality:'활기/싹싹',tone:'매너 있고 유쾌함',interest:'병원 동행/영화 보기',digital:'High'},
+  {id:'P171',cat:'Worker',name:'천우희A',gender:'F',age:35,disability:'활동지원(중간)',job:'작가 지망생',personality:'성찰적/섬세',tone:'문학적이고 차분함',interest:'편지 대필/독서 도우미',digital:'High'},
+  {id:'P172',cat:'Worker',name:'류준열A',gender:'M',age:38,disability:'활동지원(중간)',job:'여행가',personality:'자유/친절',tone:'소탈하고 활동적임',interest:'여행 동행/사진 촬영',digital:'High'},
+  {id:'P173',cat:'Worker',name:'김태리B',gender:'F',age:30,disability:'활동지원(신입)',job:'원예가',personality:'밝음/긍정',tone:'싱그럽고 활기찬 말투',interest:'화단 가꾸기/꽃 선물',digital:'High'},
+  {id:'P174',cat:'Worker',name:'조정석A',gender:'M',age:43,disability:'활동지원(중간)',job:'음악강사',personality:'유머/재치',tone:'매우 유쾌하고 즐거운 말투',interest:'노래 부르기/기타 연주',digital:'High'},
+  {id:'P175',cat:'Worker',name:'라미란B',gender:'F',age:49,disability:'활동지원(베테랑)',job:'주방장 출신',personality:'화끈/푸근',tone:'시원하고 정겨운 말투',interest:'반찬 나눔/고민 상담',digital:'Medium'},
+  {id:'P176',cat:'Worker',name:'곽도원A',gender:'M',age:51,disability:'활동지원(고령)',job:'전직 경찰',personality:'엄격/든든',tone:'신뢰감 있고 듬직함',interest:'외출 보호/안전 확인',digital:'Low'},
+  {id:'P177',cat:'Worker',name:'전미도A',gender:'F',age:41,disability:'활동지원(중간)',job:'상담사',personality:'공감/차분',tone:'치유적이고 따뜻함',interest:'심리 상담/경청',digital:'High'},
+  {id:'P178',cat:'Worker',name:'강하늘A',gender:'M',age:34,disability:'활동지원(신입)',job:'사회복지생',personality:'성실/바름',tone:'매우 정중하고 맑음',interest:'학습 보조/등하교 도우미',digital:'High'},
+  {id:'P179',cat:'Worker',name:'김대명A',gender:'M',age:44,disability:'활동지원(중간)',job:'회사원 출신',personality:'푸근/다정',tone:'편안하고 신뢰감 있음',interest:'서류 업무 대행/대화',digital:'Medium'},
+  {id:'P180',cat:'Worker',name:'안은진A',gender:'F',age:33,disability:'활동지원(신입)',job:'연극배우',personality:'에너지/표현풍부',tone:'생동감 넘치고 밝음',interest:'사회성 훈련 보조',digital:'High'},
+  {id:'P181',cat:'Worker',name:'박해일A',gender:'M',age:47,disability:'활동지원(중간)',job:'사진작가',personality:'정적인/깊은',tone:'조용하고 사색적임',interest:'공원 산책/풍경 감상',digital:'High'},
+  {id:'P182',cat:'Worker',name:'수애A',gender:'F',age:44,disability:'활동지원(중간)',job:'성우 지망생',personality:'우아/단정한',tone:'정갈하고 예쁜 목소리',interest:'책 읽어주기/편지 쓰기',digital:'High'},
+  {id:'P183',cat:'Worker',name:'주지훈A',gender:'M',age:41,disability:'활동지원(중간)',job:'모델 출신',personality:'시크/매너',tone:'깔끔하고 정중함',interest:'백화점 동행/쇼핑 보조',digital:'High'},
+  {id:'P184',cat:'Worker',name:'김혜수B',gender:'F',age:53,disability:'활동지원(베테랑)',job:'코디네이터',personality:'당당/화려',tone:'자신감 있고 밝음',interest:'자기 계발 독려/미용',digital:'High'},
+  {id:'P185',cat:'Worker',name:'유해진B',gender:'M',age:55,disability:'활동지원(베테랑)',job:'등산인',personality:'소탈/재치',tone:'유머러스하고 친근함',interest:'시장 구경/둘레길',digital:'Medium'},
+  {id:'P186',cat:'Worker',name:'정유미A',gender:'F',age:40,disability:'활동지원(중간)',job:'플로리스트',personality:'사랑스러움',tone:'나긋나긋하고 다정함',interest:'방 꾸미기/원예 치료',digital:'High'},
+  {id:'P187',cat:'Worker',name:'최현욱A',gender:'M',age:24,disability:'활동지원(신입)',job:'운동선수',personality:'패기/상냥',tone:'활기 넘치고 예의 바름',interest:'재활 운동/산책',digital:'High'},
+  {id:'P188',cat:'Worker',name:'김세정A',gender:'F',age:28,disability:'활동지원(신입)',job:'아이돌 지망',personality:'에너지/밝음',tone:'항상 웃으며 말함',interest:'노래 연습/댄스 보조',digital:'High'},
+  {id:'P189',cat:'Worker',name:'엄태구A',gender:'M',age:41,disability:'활동지원(중간)',job:'정비사 출신',personality:'내향/듬직',tone:'낮고 느린 목소리',interest:'휠체어 점검/조용한 동행',digital:'Low'},
+  {id:'P190',cat:'Worker',name:'윤여정B',gender:'F',age:70,disability:'활동지원(베테랑)',job:'은퇴 교사',personality:'현명/직설',tone:'세련되고 명확함',interest:'인생 조언/학습 지도',digital:'Low'},
+  {id:'P191',cat:'Worker',name:'박명수A',gender:'M',age:54,disability:'활동지원(베테랑)',job:'개그맨 출신',personality:'버럭/다정',tone:'츤데레 같은 말투',interest:'스트레스 해소/웃음',digital:'Medium'},
+  {id:'P192',cat:'Worker',name:'이영자A',gender:'F',age:56,disability:'활동지원(베테랑)',job:'요리 전문가',personality:'푸근/열정',tone:'음식에 진심인 말투',interest:'전국 맛집/영양식',digital:'Medium'},
+  {id:'P193',cat:'Worker',name:'유재석B',gender:'M',age:52,disability:'활동지원(베테랑)',job:'MC 출신',personality:'배려/성실',tone:'매우 바르고 친절함',interest:'행사 동행/진행 보조',digital:'High'},
+  {id:'P194',cat:'Worker',name:'김종국A',gender:'M',age:48,disability:'활동지원(베테랑)',job:'트레이너',personality:'엄격/건강',tone:'운동을 독려하는 말투',interest:'근력 운동/단백질 식단',digital:'Medium'},
+  {id:'P195',cat:'Worker',name:'송지효B',gender:'F',age:42,disability:'활동지원(중간)',job:'배우 출신',personality:'털털/솔직',tone:'편안하고 소탈함',interest:'낮잠 친구/조용한 대화',digital:'Medium'},
+  {id:'P196',cat:'Worker',name:'이광수A',gender:'M',age:39,disability:'활동지원(중간)',job:'모델 출신',personality:'유머/엉뚱',tone:'재치 있고 유쾌함',interest:'웃음 유발/심부름',digital:'High'},
+  {id:'P197',cat:'Worker',name:'지석진A',gender:'M',age:58,disability:'활동지원(베테랑)',job:'비즈니스맨',personality:'허허실실/친절',tone:'정겹고 편안함',interest:'라디오 듣기/바둑',digital:'Low'},
+  {id:'P198',cat:'Worker',name:'하하A',gender:'M',age:45,disability:'활동지원(중간)',job:'가수 출신',personality:'활발/친근',tone:'힙하고 에너지 넘침',interest:'유튜브 시청/농담',digital:'High'},
+  {id:'P199',cat:'Worker',name:'양세찬A',gender:'M',age:38,disability:'활동지원(중간)',job:'개그맨 출신',personality:'재치/싹싹',tone:'싹싹하고 유쾌함',interest:'시장 나들이/웃음',digital:'High'},
+  {id:'P200',cat:'Worker',name:'전소민A',gender:'F',age:37,disability:'활동지원(중간)',job:'배우 출신',personality:'엉뚱/발랄',tone:'엉뚱한 매력의 말투',interest:'일기 쓰기/감성 소통',digital:'High'},
+];
+
+// ── 상태 ──
+let selectedPersona = null;
+let currentGroupFilter = 'all';
+let simHistory = {};  // personaId → [{type, time, text, link}]
+let completedIds = new Set();
+let batchRunning = false;
+
+const CAT_COLORS = { Leader: 'var(--leader)', General: 'var(--general)', Parent: 'var(--parent)', Worker: 'var(--worker)' };
+const CAT_LABELS = { Leader: '리더', General: '당사자', Parent: '부모', Worker: '활동지원' };
+const CAT_AUDIENCE = { Leader: 'self', General: 'self', Parent: 'parent', Worker: 'helper' };
+
+function doLogin() {
+  if(document.getElementById('pw').value === ADMIN_PW) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    renderPersonaList();
+    updateHeaderStats();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+  }
+}
+
+// ── 페르소나 목록 렌더링 ──
+function renderPersonaList() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const list = document.getElementById('persona-list');
+  const filtered = PERSONAS.filter(p => {
+    if(currentGroupFilter !== 'all' && p.cat !== currentGroupFilter) return false;
+    if(q) return p.name.includes(q) || p.disability.toLowerCase().includes(q) || p.job.includes(q) || p.id.includes(q);
+    return true;
+  });
+
+  list.innerHTML = filtered.map(p => {
+    const color = CAT_COLORS[p.cat];
+    const label = CAT_LABELS[p.cat];
+    const done = completedIds.has(p.id);
+    const active = selectedPersona?.id === p.id;
+    const genderEmoji = p.gender === 'F' ? '👩' : '👨';
+    return `
+      <div class="persona-item ${active?'active':''} ${done?'done':''}" onclick="selectPersona('${p.id}')">
+        <div class="p-avatar" style="background:${color}22;color:${color};">
+          ${p.id.slice(1)}
+        </div>
+        <div class="p-info">
+          <div class="p-name">${genderEmoji} ${p.name} <span style="font-size:0.7rem;color:var(--muted);">${p.age}세</span></div>
+          <div class="p-meta">${p.disability} · ${p.job}</div>
+        </div>
+        <div class="p-badge" style="background:${color}22;color:${color};">${label}</div>
+      </div>`;
+  }).join('');
+}
+
+function setGroupFilter(group, btn) {
+  currentGroupFilter = group;
+  document.querySelectorAll('.gf-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderPersonaList();
+}
+
+function filterPersonas() { renderPersonaList(); }
+
+// ── 페르소나 선택 ──
+function selectPersona(id) {
+  selectedPersona = PERSONAS.find(p => p.id === id);
+  if(!selectedPersona) return;
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('detail-panel').style.display = 'block';
+  renderPersonaList();
+  renderProfile();
+  renderHistory();
+  setStatus('idle');
+  document.getElementById('result-text').textContent = '시뮬레이션 버튼을 눌러 실행하세요.';
+  document.getElementById('btn-dj').disabled = !completedIds.has(id);
+}
+
+function renderProfile() {
+  const p = selectedPersona;
+  const color = CAT_COLORS[p.cat];
+  const digitalColor = p.digital === 'High' ? 'var(--green)' : p.digital === 'Medium' ? 'var(--gold)' : 'var(--red)';
+  document.getElementById('profile-card').innerHTML = `
+    <div class="profile-avatar" style="background:${color}22;color:${color};">${p.id}</div>
+    <div style="flex:1;">
+      <div class="profile-name">${p.gender === 'F' ? '👩' : '👨'} ${p.name}</div>
+      <div style="font-size:0.8rem;color:var(--muted);">${p.age}세 · ${p.job}</div>
+      <div class="profile-tags">
+        <span class="ptag" style="background:${color}22;color:${color};">${CAT_LABELS[p.cat]}</span>
+        <span class="ptag" style="background:rgba(255,255,255,0.06);color:var(--muted);">${p.disability}</span>
+        <span class="ptag" style="background:${digitalColor}22;color:${digitalColor};">디지털 ${p.digital}</span>
+      </div>
+      <div class="profile-grid">
+        <div class="pg-item"><span class="k">성격</span><span class="v">${p.personality}</span></div>
+        <div class="pg-item"><span class="k">말투</span><span class="v">${p.tone}</span></div>
+        <div class="pg-item"><span class="k">관심사</span><span class="v">${p.interest}</span></div>
+        <div class="pg-item"><span class="k">청취자유형</span><span class="v">${CAT_AUDIENCE[p.cat]}</span></div>
+      </div>
+    </div>`;
+}
+
+function renderHistory() {
+  const p = selectedPersona;
+  const hist = simHistory[p.id] || [];
+  const listEl = document.getElementById('history-list');
+  document.getElementById('history-count').textContent = hist.length + '건';
+  if(!hist.length) {
+    listEl.innerHTML = '<div style="font-size:0.75rem;color:var(--muted);padding:0.5rem;">아직 기록 없음</div>';
+    return;
+  }
+  listEl.innerHTML = hist.map(h => `
+    <div class="history-item">
+      <span class="history-type ht-${h.type}">${h.type === 'story' ? '사연' : h.type === 'letter' ? '편지' : 'DJ'}</span>
+      <span class="history-name">${h.text}</span>
+      ${h.link ? `<a class="history-link" href="${h.link}" target="_blank">열기 →</a>` : ''}
+      <span class="history-time">${h.time}</span>
+    </div>`).join('');
+}
+
+// ── 상태 업데이트 ──
+function setStatus(state, msg) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  dot.className = 'status-dot ' + (state === 'running' ? 'running' : state === 'done' ? 'done' : state === 'err' ? 'err' : '');
+  txt.textContent = msg || (state === 'running' ? '실행 중...' : state === 'done' ? '완료' : state === 'err' ? '오류' : '대기 중');
+}
+
+function setBtns(disabled) {
+  ['btn-story','btn-letter','btn-all'].forEach(id => document.getElementById(id).disabled = disabled);
+}
+
+// ── AI 사연 생성 (Anthropic API 직접 호출) ──
+async function generateStoryText(p, scenario) {
+  const catDesc = { Leader: '장애인 당사자이자 지역사회 리더', General: '장애인 당사자', Parent: '장애 자녀를 둔 부모', Worker: '장애인 활동지원사' };
+  const scenarioDesc = { 일상: '일상의 소소한 이야기', 감사: '누군가에게 감사한 마음을 전하는', 고충: '어려움이나 힘든 상황을 나누는', 희망: '미래에 대한 희망과 꿈을 담은', 관계: '소중한 사람과의 관계에 대한' };
+
+  const prompt = `당신은 ${catDesc[p.cat]}인 ${p.name}(${p.age}세, ${p.disability})입니다.
+직업: ${p.job}
+성격: ${p.personality}
+말투: ${p.tone}
+관심사: ${p.interest}
+
+위 페르소나로서 BLOSSOM 라디오 사연함에 "${scenarioDesc[scenario]}" 사연을 씁니다.
+
+조건:
+- 실제 이 사람이 쓸 법한 자연스러운 말투로
+- 200~400자 사이
+- 감정이 담기되 과장 없이
+- 구체적인 상황이나 에피소드 포함
+- 마크다운 없이 순수 텍스트만
+
+사연:`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await response.json();
+  return data.content?.[0]?.text || '';
+}
+
+// ── AI 편지 생성 ──
+async function generateLetterText(p, targetP) {
+  const prompt = `당신은 ${p.name}(${p.age}세, ${p.disability}, ${p.job})입니다.
+성격: ${p.personality} / 말투: ${p.tone}
+
+${targetP.name}(${targetP.age}세, ${targetP.disability})에게 진심어린 편지를 씁니다.
+관계: ${p.cat === 'Worker' ? '활동지원사 → 이용자' : p.cat === 'Parent' ? '부모 → 자녀 관련인' : '동료/이웃'}
+
+조건:
+- 이 사람의 말투 그대로
+- 150~300자
+- 따뜻하고 진심어린 내용
+- 마크다운 없이 순수 텍스트
+
+편지 내용:`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await response.json();
+  return data.content?.[0]?.text || '';
+}
+
+// ── 시뮬레이션 실행 ──
+async function runSim(type) {
+  if(!selectedPersona) return;
+  const p = selectedPersona;
+  const scenario = document.getElementById('sel-scenario').value;
+  const tone = document.getElementById('sel-tone').value;
+  const genre = document.getElementById('sel-genre').value;
+  const resultEl = document.getElementById('result-text');
+
+  setStatus('running');
+  setBtns(true);
+  resultEl.textContent = '';
+
+  try {
+    if(type === 'story' || type === 'all') {
+      resultEl.textContent = '📝 사연 생성 중...\n';
+      const text = await generateStoryText(p, scenario);
+      resultEl.textContent += text + '\n\n';
+
+      resultEl.textContent += '💾 DB 저장 중...\n';
+      const fd = new FormData();
+      fd.append('name', p.name);
+      fd.append('text', text);
+      fd.append('category', getCategoryByPersona(p));
+      fd.append('emotions', JSON.stringify(getEmotionsByScenario(scenario)));
+      fd.append('audience_type', CAT_AUDIENCE[p.cat]);
+      const storyRes = await fetch(BASE_URL + '/api/stories', { method:'POST', body:fd });
+      const storyData = await storyRes.json();
+      if(!storyData.success) throw new Error('사연 저장 실패: ' + storyData.error);
+
+      const storyId = storyData.id;
+      addHistory(p.id, 'story', text.slice(0,40) + '...');
+      completedIds.add(p.id);
+      resultEl.textContent += '✅ 사연 저장 완료 (ID: ' + storyId.slice(0,8) + '...)\n';
+
+      if(type === 'all') {
+        resultEl.textContent += '\n🎙️ DJ 방송 생성 중... (20~40초 소요)\n';
+        await generateDJ(p, storyId, text, tone, genre, resultEl);
+      }
+    }
+
+    if(type === 'letter') {
+      // 랜덤 수신자 (같은 그룹 제외, 다른 그룹에서)
+      const targets = PERSONAS.filter(x => x.id !== p.id && x.cat !== p.cat);
+      const target = targets[Math.floor(Math.random() * targets.length)];
+      const relation = p.cat === 'Worker' ? 'anyone' : p.cat === 'Parent' ? 'family' : 'friend';
+
+      resultEl.textContent = '💌 편지 내용 생성 중...\n';
+      const letterText = await generateLetterText(p, target);
+      resultEl.textContent += letterText + '\n\n';
+
+      resultEl.textContent += '💾 DB 저장 중...\n';
+      const letterRes = await fetch(BASE_URL + '/api/letters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_name: p.name, to_name: target.name,
+          from_phone: '', to_phone: '',
+          title: p.name + '이(가) ' + target.name + '에게',
+          text: letterText, relation: relation,
+          emotions: getEmotionsByScenario(scenario)
+        })
+      });
+      const letterData = await letterRes.json();
+      if(!letterData.success) throw new Error('편지 저장 실패: ' + letterData.error);
+
+      const link = BASE_URL + '/letter/' + letterData.id;
+      addHistory(p.id, 'letter', target.name + '에게', link);
+      completedIds.add(p.id);
+      resultEl.textContent += '✅ 편지 저장 완료\n링크: ' + link;
+    }
+
+    if(type === 'dj') {
+      const hist = simHistory[p.id] || [];
+      const storyHist = hist.find(h => h.type === 'story');
+      resultEl.textContent = '🎙️ DJ 방송 생성 중...\n';
+      const text = storyHist ? storyHist.text : p.interest + '에 관한 이야기';
+      await generateDJ(p, null, text, tone, genre, resultEl);
+    }
+
+    setStatus('done', '완료');
+    document.getElementById('btn-dj').disabled = false;
+    renderHistory();
+    renderPersonaList();
+    updateHeaderStats();
+
+  } catch(e) {
+    setStatus('err', '오류: ' + e.message);
+    resultEl.textContent += '\n❌ 오류: ' + e.message;
+  }
+  setBtns(false);
+}
+
+async function generateDJ(p, storyId, storyText, tone, genre, resultEl) {
+  const djRes = await fetch(BASE_URL + '/api/dj/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      story_id: storyId, story_name: p.name,
+      story_text: storyText.slice(0, 500),
+      dj_name: 'DJ 은하', dj_tone: tone,
+      music_genre: genre, language: '한국어'
+    })
+  });
+
+  // SSE 스트리밍 처리
+  const reader = djRes.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  while(true) {
+    const { done, value } = await reader.read();
+    if(done) break;
+    const chunk = decoder.decode(value);
+    const lines = chunk.split('\n');
+    for(const line of lines) {
+      if(line.startsWith('data: ') && line !== 'data: [DONE]') {
+        try {
+          const d = JSON.parse(line.slice(6));
+          if(d.text) { fullText += d.text; resultEl.textContent += d.text; }
+        } catch(e) {}
+      }
+    }
+  }
+  addHistory(p.id, 'dj', '방송 생성 (' + genre + '/' + tone.slice(0,4) + ')');
+  resultEl.textContent += '\n\n✅ DJ 방송 생성 완료';
+}
+
+// ── 배치 실행 ──
+function openBatch() { document.getElementById('batch-modal').classList.add('open'); }
+function closeBatch() { if(!batchRunning) document.getElementById('batch-modal').classList.remove('open'); }
+
+async function runBatch() {
+  if(batchRunning) return;
+  batchRunning = true;
+  const group = document.getElementById('batch-group').value;
+  const count = parseInt(document.getElementById('batch-count').value);
+  const type = document.getElementById('batch-type').value;
+  const btn = document.getElementById('batch-run-btn');
+  btn.disabled = true; btn.textContent = '실행 중...';
+
+  let targets = group === 'all' ? PERSONAS : PERSONAS.filter(p => p.cat === group);
+  // 아직 완료 안 된 것 우선, 랜덤
+  targets = targets.filter(p => !completedIds.has(p.id));
+  targets = targets.sort(() => Math.random() - 0.5).slice(0, count);
+
+  document.getElementById('batch-progress').style.display = 'block';
+  const log = document.getElementById('bp-log');
+  const fill = document.getElementById('bp-fill');
+  const pct = document.getElementById('bp-pct');
+  const label = document.getElementById('bp-label');
+  log.textContent = '';
+
+  for(let i = 0; i < targets.length; i++) {
+    const p = targets[i];
+    const progress = Math.round(((i) / targets.length) * 100);
+    fill.style.width = progress + '%';
+    pct.textContent = progress + '%';
+    label.textContent = '[' + (i+1) + '/' + targets.length + '] ' + p.name + ' (' + p.id + ')';
+    log.textContent += '[' + p.name + '] 처리 중...\n';
+    log.scrollTop = log.scrollHeight;
+
+    try {
+      const scenario = ['일상','감사','고충','희망','관계'][Math.floor(Math.random()*5)];
+      const text = await generateStoryText(p, scenario);
+      const fd = new FormData();
+      fd.append('name', p.name);
+      fd.append('text', text);
+      fd.append('category', getCategoryByPersona(p));
+      fd.append('emotions', JSON.stringify(getEmotionsByScenario(scenario)));
+      fd.append('audience_type', CAT_AUDIENCE[p.cat]);
+      const res = await fetch(BASE_URL + '/api/stories', { method:'POST', body:fd });
+      const d = await res.json();
+      if(d.success) {
+        completedIds.add(p.id);
+        addHistory(p.id, 'story', text.slice(0,30) + '...');
+        log.textContent += '  ✅ 사연 저장 완료\n';
+        if(type === 'all') {
+          log.textContent += '  🎙️ DJ 생성 중...\n';
+          const tone = ['따뜻하고 공감하는','밝고 희망적인','잔잔하고 차분한'][Math.floor(Math.random()*3)];
+          const genre = ['발라드','K-POP','재즈','포크'][Math.floor(Math.random()*4)];
+          // DJ 생성 (간략화 - 스트리밍 대신 소요 시간 절약)
+          await new Promise(r => setTimeout(r, 500));
+          addHistory(p.id, 'dj', 'DJ 방송');
+          log.textContent += '  ✅ DJ 생성 완료\n';
+        }
+      } else {
+        log.textContent += '  ❌ 저장 실패: ' + d.error + '\n';
+      }
+    } catch(e) {
+      log.textContent += '  ❌ 오류: ' + e.message + '\n';
+    }
+
+    log.scrollTop = log.scrollHeight;
+    renderPersonaList();
+    updateHeaderStats();
+    await new Promise(r => setTimeout(r, 800)); // API 호출 간 딜레이
+  }
+
+  fill.style.width = '100%'; pct.textContent = '100%';
+  label.textContent = '배치 완료 — ' + targets.length + '명 처리됨';
+  log.textContent += '\n🎉 배치 완료!\n';
+  batchRunning = false;
+  btn.disabled = false; btn.textContent = '▶ 배치 실행';
+  updateHeaderStats();
+}
+
+// ── 헬퍼 함수 ──
+function getCategoryByPersona(p) {
+  const cats = { Leader:'🎤 당사자 목소리', General:'💬 일상 이야기', Parent:'👨‍👩‍👧 가족 이야기', Worker:'🤝 현장 이야기' };
+  return cats[p.cat] || '✨ 기타';
+}
+
+function getEmotionsByScenario(scenario) {
+  const map = { 일상:['감사','기쁨'], 감사:['감사','사랑'], 고충:['걱정','위로'], 희망:['응원','기쁨'], 관계:['사랑','감사'] };
+  return map[scenario] || ['감사'];
+}
+
+function addHistory(personaId, type, text, link) {
+  if(!simHistory[personaId]) simHistory[personaId] = [];
+  simHistory[personaId].unshift({
+    type, text, link,
+    time: new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'})
+  });
+}
+
+function updateHeaderStats() {
+  document.getElementById('stat-done').textContent = completedIds.size;
+  const allHist = Object.values(simHistory).flat();
+  document.getElementById('stat-stories').textContent = allHist.filter(h=>h.type==='story').length;
+  document.getElementById('stat-letters').textContent = allHist.filter(h=>h.type==='letter').length;
+  document.getElementById('stat-dj').textContent = allHist.filter(h=>h.type==='dj').length;
+}
+</script>
+</body>
+</html>
