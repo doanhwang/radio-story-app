@@ -18,6 +18,7 @@
   --border: #e8e0d0;
   --border2: #d4c8b4;
   --red-heart: #e05050;
+  --purple: #7c5cbf;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
@@ -234,12 +235,22 @@ body {
     <div class="field-group">
       <div class="field-row">
         <div>
-          <label class="field-label">✏️ 보내는 사람 (나)</label>
+          <label class="field-label">✏️ 보내는 사람 이름</label>
           <input class="field-input" id="from-name" placeholder="이름 또는 별명" maxlength="20">
         </div>
         <div>
-          <label class="field-label">💌 받는 사람</label>
+          <label class="field-label">💌 받는 사람 이름</label>
           <input class="field-input" id="to-name" placeholder="이름 또는 별명" maxlength="20">
+        </div>
+      </div>
+      <div class="field-row" style="margin-top:0.9rem;">
+        <div>
+          <label class="field-label">📱 보내는 사람 전화번호</label>
+          <input class="field-input" id="from-phone" type="tel" placeholder="010-0000-0000" maxlength="13" oninput="formatPhone(this)">
+        </div>
+        <div>
+          <label class="field-label">📱 받는 사람 전화번호</label>
+          <input class="field-input" id="to-phone" type="tel" placeholder="010-0000-0000" maxlength="13" oninput="formatPhone(this)">
         </div>
       </div>
     </div>
@@ -255,12 +266,60 @@ body {
     <!-- 편지 내용 -->
     <div class="field-group">
       <div class="section-label">📝 전하고 싶은 말</div>
-      <textarea class="letter-textarea" id="letter-text"
-        placeholder="하고 싶은 말을 자유롭게 적어주세요.
+
+      <!-- 입력 방식 탭 -->
+      <div style="display:flex;gap:0.4rem;margin-bottom:0.8rem;">
+        <button class="input-tab on" id="tab-text" onclick="switchInputTab('text')">✏️ 텍스트</button>
+        <button class="input-tab" id="tab-rec" onclick="switchInputTab('rec')">🎙️ 음성 녹음</button>
+        <button class="input-tab" id="tab-stt" onclick="switchInputTab('stt')">📝 받아쓰기</button>
+      </div>
+
+      <!-- 텍스트 입력 -->
+      <div id="input-text">
+        <textarea class="letter-textarea" id="letter-text"
+          placeholder="하고 싶은 말을 자유롭게 적어주세요.
 마음 속에 담아둔 이야기, 고마움, 미안함, 사랑하는 마음…
 DJ가 이 사연을 읽고 특별한 라디오 방송을 만들어 드립니다."
-        oninput="updateCount()" maxlength="2000"></textarea>
-      <div class="char-count"><span id="char-count">0</span> / 2000</div>
+          oninput="updateCount()" maxlength="2000"></textarea>
+        <div class="char-count"><span id="char-count">0</span> / 2000</div>
+      </div>
+
+      <!-- 음성 녹음 -->
+      <div id="input-rec" style="display:none;">
+        <div class="voice-box">
+          <p class="voice-hint">🎙️ 버튼을 눌러 음성으로 편지를 녹음하세요</p>
+          <div style="display:flex;align-items:center;justify-content:center;gap:0.8rem;flex-wrap:wrap;">
+            <button class="rec-main-btn" id="rec-btn" onclick="toggleRec()">
+              <span id="rec-label">🔴 녹음 시작</span>
+            </button>
+            <span class="rec-timer" id="rec-timer" style="display:none;">00:00</span>
+          </div>
+          <div id="audio-preview" style="margin-top:1rem;"></div>
+          <!-- 파일 업로드 -->
+          <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+            <input type="file" id="file-input" accept="audio/*" onchange="handleFile(this)" style="display:none;">
+            <p style="font-size:0.8rem;color:var(--ink-faint);">또는 음성 파일 업로드 (클릭)</p>
+            <p class="fname" id="fname"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 받아쓰기 -->
+      <div id="input-stt" style="display:none;">
+        <div class="voice-box">
+          <p class="voice-hint">📝 말하면 자동으로 텍스트로 변환됩니다</p>
+          <div style="display:flex;align-items:center;justify-content:center;gap:0.8rem;flex-wrap:wrap;">
+            <button class="rec-main-btn" id="stt-btn" onclick="toggleSTT()" style="background:var(--purple);">
+              <span id="stt-label">🎤 받아쓰기 시작</span>
+            </button>
+            <span class="rec-timer" id="stt-timer" style="display:none;">00:00</span>
+          </div>
+          <p id="stt-status" style="font-size:0.78rem;color:var(--ink-faint);margin-top:0.6rem;"></p>
+          <textarea class="letter-textarea" id="stt-text" placeholder="받아쓴 내용이 여기에 표시됩니다…"
+            style="margin-top:0.8rem;" oninput="updateCount()" maxlength="2000"></textarea>
+          <div class="char-count"><span id="stt-char-count">0</span> / 2000</div>
+        </div>
+      </div>
     </div>
 
     <hr class="divider">
@@ -324,14 +383,23 @@ function updateCount(){
 }
 
 async function submitLetter(){
-  const fromName = document.getElementById('from-name').value.trim();
-  const toName   = document.getElementById('to-name').value.trim();
-  const text     = document.getElementById('letter-text').value.trim();
-  const title    = document.getElementById('letter-title').value.trim();
-  const emotions = [...document.querySelectorAll('.tag-chip.on')].map(t => t.textContent);
-  const errEl    = document.getElementById('error-msg');
+  const fromName  = document.getElementById('from-name').value.trim();
+  const toName    = document.getElementById('to-name').value.trim();
+  const fromPhone = document.getElementById('from-phone').value.trim();
+  const toPhone   = document.getElementById('to-phone').value.trim();
+  const title     = document.getElementById('letter-title').value.trim();
+  const emotions  = [...document.querySelectorAll('.tag-chip.on')].map(t => t.textContent);
+  const errEl     = document.getElementById('error-msg');
 
-  if(!fromName || !toName || !text){
+  // 현재 활성 탭의 텍스트 수집
+  const activeTab = document.querySelector('.input-tab.on')?.id;
+  let text = '';
+  if(activeTab === 'tab-text') text = document.getElementById('letter-text').value.trim();
+  else if(activeTab === 'tab-stt') text = document.getElementById('stt-text').value.trim();
+  else if(activeTab === 'tab-rec') text = '🎙️ 음성 편지입니다.'; // 음성은 텍스트 없음
+
+  if(!fromName || !toName || (!text && !recBlob && !uploadedFile)){
+    errEl.textContent = '보내는 사람, 받는 사람, 내용을 입력해주세요.';
     errEl.style.display = 'block';
     return;
   }
@@ -342,22 +410,38 @@ async function submitLetter(){
   btn.textContent = '⏳ 전송 중...';
 
   try {
-    const res = await fetch('/api/letters', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        from_name: fromName,
-        to_name:   toName,
-        title:     title || `${fromName}이(가) ${toName}에게`,
-        text,
-        relation:  selectedRelation || 'anyone',
-        emotions
-      })
-    });
+    // 음성 파일 있으면 FormData, 없으면 JSON
+    let res;
+    const vs = recBlob || uploadedFile;
+    if(vs){
+      const fd = new FormData();
+      fd.append('from_name', fromName);
+      fd.append('to_name', toName);
+      fd.append('from_phone', fromPhone);
+      fd.append('to_phone', toPhone);
+      fd.append('title', title || `${fromName}이(가) ${toName}에게`);
+      fd.append('text', text);
+      fd.append('relation', selectedRelation || 'anyone');
+      fd.append('emotions', JSON.stringify(emotions));
+      const ext = vs instanceof File ? vs.name.split('.').pop() : 'webm';
+      fd.append('voice', vs, `voice.${ext}`);
+      res = await fetch('/api/letters', { method:'POST', body: fd });
+    } else {
+      res = await fetch('/api/letters', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          from_name: fromName, to_name: toName,
+          from_phone: fromPhone, to_phone: toPhone,
+          title: title || `${fromName}이(가) ${toName}에게`,
+          text, relation: selectedRelation || 'anyone', emotions
+        })
+      });
+    }
+
     const d = await res.json();
     if(!d.success) throw new Error(d.error || '전송 실패');
 
-    // 성공
     const url = `${location.origin}/letter/${d.id}`;
     document.getElementById('share-url').textContent = url;
     document.getElementById('to-name-display').textContent = toName;
@@ -390,16 +474,139 @@ function shareKakao(){
   }
 }
 
+// ── 전화번호 포맷 ──
+function formatPhone(el){
+  let v = el.value.replace(/\D/g,'');
+  if(v.length <= 3) el.value = v;
+  else if(v.length <= 7) el.value = v.slice(0,3)+'-'+v.slice(3);
+  else el.value = v.slice(0,3)+'-'+v.slice(3,7)+'-'+v.slice(7,11);
+}
+
+// ── 입력 탭 전환 ──
+function switchInputTab(tab){
+  ['text','rec','stt'].forEach(t => {
+    document.getElementById('input-'+t).style.display = tab===t ? 'block' : 'none';
+    document.getElementById('tab-'+t).classList.toggle('on', tab===t);
+  });
+}
+
+// ── 음성 녹음 ──
+let recorder=null, chunks=[], recBlob=null, uploadedFile=null;
+let timerInt=null, secs=0, recActive=false;
+
+async function toggleRec(){
+  if(!recActive){
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      recorder = new MediaRecorder(stream); chunks=[];
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = () => {
+        recBlob = new Blob(chunks, {type:'audio/webm'});
+        const url = URL.createObjectURL(recBlob);
+        document.getElementById('audio-preview').innerHTML = `<audio controls src="${url}"></audio>`;
+        stream.getTracks().forEach(t=>t.stop());
+      };
+      recorder.start(); recActive=true;
+      document.getElementById('rec-btn').classList.add('recording');
+      document.getElementById('rec-label').textContent = '⏹️ 녹음 중지';
+      secs=0; document.getElementById('rec-timer').style.display='inline';
+      timerInt = setInterval(()=>{
+        secs++;
+        document.getElementById('rec-timer').textContent =
+          String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0');
+      },1000);
+    }catch(e){ alert('마이크 접근 권한이 필요합니다.'); }
+  } else {
+    recorder.stop(); recActive=false; clearInterval(timerInt);
+    document.getElementById('rec-btn').classList.remove('recording');
+    document.getElementById('rec-label').textContent = '🔴 녹음 시작';
+    document.getElementById('rec-timer').style.display='none';
+  }
+}
+
+function handleFile(input){
+  const f = input.files[0]; if(!f) return;
+  uploadedFile = f;
+  document.getElementById('fname').textContent = '✅ '+f.name;
+}
+
+// ── 받아쓰기 ──
+let recognition=null, recognizing=false, sttSecs=0, sttTimer=null;
+
+function addSpacing(prev, next){
+  if(!prev) return next;
+  if(prev.endsWith(' ')||prev.endsWith('
+')) return prev+next;
+  if(/[.!?。]$/.test(prev)) return prev+'
+'+next;
+  return prev+' '+next;
+}
+
+function toggleSTT(){
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ document.getElementById('stt-status').textContent='❗ 이 브라우저는 받아쓰기를 지원하지 않아요'; return; }
+  if(!recognizing){
+    recognizing=true;
+    document.getElementById('stt-btn').style.opacity='0.8';
+    document.getElementById('stt-label').textContent='⏹️ 받아쓰기 중지';
+    document.getElementById('stt-timer').style.display='inline';
+    document.getElementById('stt-status').textContent='🔴 듣고 있어요...';
+    sttSecs=0;
+    sttTimer = setInterval(()=>{
+      sttSecs++;
+      document.getElementById('stt-timer').textContent =
+        String(Math.floor(sttSecs/60)).padStart(2,'0')+':'+String(sttSecs%60).padStart(2,'0');
+    },1000);
+    startSTT();
+  } else {
+    recognizing=false;
+    if(recognition){ try{recognition.stop();}catch(e){} recognition=null; }
+    clearInterval(sttTimer);
+    document.getElementById('stt-btn').style.opacity='1';
+    document.getElementById('stt-label').textContent='🎤 받아쓰기 시작';
+    document.getElementById('stt-timer').style.display='none';
+    document.getElementById('stt-status').textContent='✅ 받아쓰기 완료 — 내용을 확인하고 편집하세요';
+  }
+}
+
+function startSTT(){
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang='ko-KR'; recognition.continuous=false; recognition.interimResults=true;
+  let base = document.getElementById('stt-text').value;
+  recognition.onresult = (e) => {
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal){ base=addSpacing(base,e.results[i][0].transcript.trim()); }
+      else { interim=e.results[i][0].transcript; }
+    }
+    const el = document.getElementById('stt-text');
+    el.value = base+(interim?' '+interim:'');
+    document.getElementById('stt-char-count').textContent = el.value.length;
+  };
+  recognition.onend = () => {
+    if(recognizing){ base=document.getElementById('stt-text').value.trimEnd(); try{recognition.start();}catch(e){startSTT();} }
+  };
+  recognition.onerror = (e) => {
+    if(e.error==='no-speech'&&recognizing){ try{recognition.start();}catch(err){startSTT();} }
+    else if(e.error==='not-allowed'){ document.getElementById('stt-status').textContent='❗ 마이크 권한이 필요합니다'; recognizing=false; }
+  };
+  try{recognition.start();}catch(e){}
+}
+
 function resetForm(){
   document.getElementById('write-form').style.display = 'block';
   document.getElementById('success-screen').style.display = 'none';
-  document.getElementById('from-name').value = '';
-  document.getElementById('to-name').value = '';
-  document.getElementById('letter-title').value = '';
-  document.getElementById('letter-text').value = '';
+  ['from-name','to-name','from-phone','to-phone','letter-title','letter-text','stt-text'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
   document.getElementById('char-count').textContent = '0';
+  document.getElementById('stt-char-count').textContent = '0';
+  document.getElementById('audio-preview').innerHTML = '';
+  document.getElementById('fname').textContent = '';
   document.querySelectorAll('.tag-chip.on, .rel-btn.on').forEach(el => el.classList.remove('on'));
-  selectedRelation = '';
+  selectedRelation=''; recBlob=null; uploadedFile=null;
+  switchInputTab('text');
   const btn = document.getElementById('send-btn');
   btn.disabled = false;
   btn.textContent = '💌 편지 보내기';
