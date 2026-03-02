@@ -42,6 +42,9 @@ app.get('/icon-512.png', (req, res) => res.sendFile(path.join(__dirname, 'icon-5
 app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, 'privacy.html')));
 
 // 음성 업로드 임시 저장
+// letters용 메모리 업로드 (buffer 직접 접근)
+const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => {
@@ -404,7 +407,7 @@ app.delete('/api/stories', async (req, res) => {
 });
 
 // ─── 편지 저장 (JSON or FormData 음성) ───────
-app.post('/api/letters', upload.single('voice'), async (req, res) => {
+app.post('/api/letters', memUpload.single('voice'), async (req, res) => {
   try {
     const b = req.body;
     const from_name = b.from_name, to_name = b.to_name;
