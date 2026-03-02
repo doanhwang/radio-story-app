@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💌 라디오 편지</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500&family=DM+Mono&family=Playfair+Display:ital,wght@1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #faf8f4;
+  --paper: #fffef9;
+  --ink: #2c2418;
+  --ink-light: #6b5f4e;
+  --ink-faint: #b8aa96;
+  --accent: #c8622a;
+  --accent-pale: #f9ede4;
+  --gold: #c8962a;
+  --border: #e8e0d0;
+  --border2: #d4c8b4;
+  --purple: #7c5cbf;
+  --purple-pale: rgba(124,92,191,0.06);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Noto Sans KR', sans-serif;
+  background:var(--bg); color:var(--ink); min-height:100vh;
+  background-image: radial-gradient(circle at 20% 80%, rgba(200,98,42,0.04) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(200,150,42,0.04) 0%, transparent 50%);
+}
+
+/* ── 로딩 ── */
+.loading-screen {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; min-height:100vh; gap:1rem;
+}
+.loading-screen .spinner {
+  width:32px; height:32px;
+  border:2px solid var(--border2);
+  border-top-color:var(--accent);
+  border-radius:50%; animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg) } }
+
+/* ── 봉투 애니메이션 헤더 ── */
+.envelope-header {
+  text-align:center; padding:3rem 1rem 2rem;
+  border-bottom:1px solid var(--border);
+}
+.envelope-icon {
+  font-size:3rem; margin-bottom:0.8rem;
+  animation:float 3s ease-in-out infinite;
+}
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.from-to {
+  font-size:0.85rem; color:var(--ink-light); margin-bottom:0.3rem;
+}
+.letter-title-big {
+  font-family:'Noto Serif KR', serif;
+  font-size:1.5rem; font-weight:600; color:var(--ink);
+  margin:0.3rem 0 0.6rem; letter-spacing:-0.02em;
+}
+.sent-date { font-size:0.75rem; color:var(--ink-faint); font-family:'DM Mono',monospace; }
+
+/* ── 메인 ── */
+.main-wrap { max-width:660px; margin:0 auto; padding:2rem 1rem 4rem; }
+
+/* ── 편지 본문 ── */
+.letter-card {
+  background:var(--paper); border:1px solid var(--border);
+  border-radius:4px; padding:2.5rem;
+  box-shadow:0 2px 20px rgba(44,36,24,0.06);
+  margin-bottom:1.5rem; position:relative;
+}
+.letter-card::before {
+  content:''; position:absolute; top:0; left:3rem; right:0; bottom:0;
+  background:repeating-linear-gradient(transparent, transparent 31px, rgba(200,150,42,0.08) 31px, rgba(200,150,42,0.08) 32px);
+  pointer-events:none; border-radius:4px;
+}
+.letter-greeting {
+  font-family:'Noto Serif KR',serif; font-size:1rem;
+  color:var(--accent); margin-bottom:1rem; font-weight:600;
+}
+.letter-body {
+  font-family:'Noto Serif KR',serif; font-size:0.95rem;
+  line-height:2.1; color:var(--ink); white-space:pre-wrap;
+  position:relative; z-index:1;
+}
+.letter-closing {
+  font-family:'Noto Serif KR',serif; font-size:0.9rem;
+  color:var(--ink-light); text-align:right; margin-top:1.5rem;
+  font-style:italic;
+}
+.emotion-tags { display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:1rem; }
+.etag {
+  font-size:0.72rem; padding:0.2rem 0.6rem;
+  background:var(--accent-pale); border:1px solid rgba(200,98,42,0.2);
+  border-radius:20px; color:var(--accent);
+}
+
+/* ── 라디오 방송 섹션 ── */
+.radio-header {
+  display:flex; align-items:center; gap:0.8rem;
+  margin:2rem 0 1rem; padding:0.8rem 1rem;
+  background:var(--accent-pale); border:1px solid rgba(200,98,42,0.2);
+  border-radius:8px;
+}
+.radio-header .on-air {
+  display:flex; align-items:center; gap:0.4rem;
+  font-size:0.68rem; color:var(--accent); font-family:'DM Mono',monospace;
+  font-weight:700; letter-spacing:0.15em;
+}
+.on-dot { width:7px; height:7px; background:var(--accent); border-radius:50%; animation:pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.radio-header h2 {
+  font-family:'Noto Serif KR',serif; font-size:0.95rem;
+  font-weight:600; color:var(--ink);
+}
+
+/* 방송 섹션 블록 */
+.sec-block {
+  background:var(--paper); border:1px solid var(--border);
+  border-radius:8px; margin-bottom:0.8rem; overflow:hidden;
+}
+.sec-head {
+  display:flex; align-items:center; gap:0.7rem;
+  padding:0.7rem 1rem; background:var(--bg);
+  border-bottom:1px solid var(--border);
+}
+.sec-num {
+  width:22px; height:22px; border-radius:50%;
+  background:var(--accent); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.68rem; font-weight:700; flex-shrink:0;
+}
+.sec-label { font-size:0.8rem; font-weight:600; color:var(--ink); }
+.sec-sub { font-size:0.68rem; color:var(--ink-faint); margin-left:auto; font-family:'DM Mono',monospace; }
+.sec-body {
+  padding:1.2rem; font-size:0.88rem; line-height:1.9;
+  color:var(--ink); white-space:pre-wrap;
+}
+
+/* Suno 블록 */
+.suno-block {
+  margin:0.8rem 1.2rem 1.2rem;
+  background:var(--purple-pale); border:1px solid rgba(124,92,191,0.2);
+  border-radius:7px; padding:0.8rem;
+}
+.suno-label {
+  font-size:0.65rem; color:var(--purple);
+  font-family:'DM Mono',monospace; letter-spacing:0.1em;
+  text-transform:uppercase; margin-bottom:0.4rem;
+}
+.suno-prompt {
+  font-size:0.78rem; color:#7c5cbf; line-height:1.6;
+  font-family:'DM Mono',monospace; white-space:pre-wrap;
+}
+
+/* 가사 블록 */
+.lyrics-block {
+  margin:0.8rem 1.2rem 1.2rem;
+  background:rgba(200,98,42,0.04); border:1px solid rgba(200,98,42,0.15);
+  border-radius:7px; padding:0.8rem;
+}
+.lyrics-label {
+  font-size:0.65rem; color:var(--accent);
+  font-family:'DM Mono',monospace; letter-spacing:0.1em;
+  text-transform:uppercase; margin-bottom:0.5rem;
+}
+.lyrics-text {
+  font-size:0.88rem; line-height:2.1;
+  color:var(--ink); white-space:pre-wrap;
+  font-family:'Noto Serif KR',serif;
+}
+
+/* ── 방송 없을 때 ── */
+.no-broadcast {
+  text-align:center; padding:2rem;
+  color:var(--ink-faint); font-size:0.85rem;
+}
+.request-btn {
+  display:inline-block; margin-top:1rem;
+  padding:0.7rem 1.5rem;
+  background:var(--accent); color:#fff;
+  border:none; border-radius:6px;
+  font-family:'Noto Sans KR',sans-serif; font-size:0.88rem;
+  cursor:pointer; transition:all 0.2s;
+}
+.request-btn:hover { background:#b5551f; }
+
+/* ── 공유 버튼 ── */
+.share-bar {
+  display:flex; gap:0.5rem; margin-top:1.5rem; flex-wrap:wrap;
+}
+.share-btn {
+  flex:1; padding:0.7rem; border:1px solid var(--border2);
+  background:var(--paper); border-radius:6px;
+  font-family:'Noto Sans KR',sans-serif; font-size:0.82rem;
+  color:var(--ink-light); cursor:pointer; transition:all 0.2s;
+  min-width:120px; text-align:center;
+}
+.share-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+/* ── 404 ── */
+.not-found { text-align:center; padding:4rem 1rem; }
+.not-found .icon { font-size:3rem; margin-bottom:1rem; }
+.not-found h2 { font-family:'Noto Serif KR',serif; font-size:1.2rem; margin-bottom:0.5rem; }
+.not-found p { color:var(--ink-light); font-size:0.88rem; }
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="spinner"></div>
+  <div style="font-size:0.85rem;color:var(--ink-faint);">편지를 불러오는 중...</div>
+</div>
+
+<div id="app" style="display:none;"></div>
+
+<script>
+const letterId = location.pathname.split('/letter/')[1];
+
+async function init(){
+  if(!letterId){
+    showNotFound(); return;
+  }
+  try {
+    const res = await fetch('/api/letters/' + letterId);
+    if(!res.ok) throw new Error('not found');
+    const data = await res.json();
+    renderLetter(data);
+  } catch(e){
+    showNotFound();
+  }
+}
+
+function renderLetter(d){
+  document.getElementById('loading').style.display = 'none';
+  const app = document.getElementById('app');
+  app.style.display = 'block';
+
+  const relMap = { family:'가족', friend:'친구/지인', lover:'연인/배우자', anyone:'소중한 사람' };
+  const relLabel = relMap[d.relation] || '소중한 사람';
+  const dt = d.created_at
+    ? new Date(d.created_at).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'})
+    : '';
+  const emotions = (d.emotions||[]).map(e => `<span class="etag">${e}</span>`).join('');
+
+  // 방송 섹션 파싱
+  const broadcastHtml = d.broadcast_text
+    ? renderBroadcast(d.broadcast_text, d.from_name, d.to_name)
+    : `<div class="no-broadcast">
+        <div>아직 DJ 라디오 방송이 제작되지 않았어요</div>
+        <div style="font-size:0.75rem;margin-top:0.4rem;color:var(--ink-faint);">관리자가 곧 방송을 만들어 전달해 드릴게요 📻</div>
+       </div>`;
+
+  document.title = `💌 ${d.from_name}이(가) ${d.to_name}에게 — 라디오 편지`;
+
+  app.innerHTML = `
+    <div class="envelope-header">
+      <div class="envelope-icon">💌</div>
+      <div class="from-to">${d.from_name} → ${d.to_name} · ${relLabel}</div>
+      <div class="letter-title-big">${d.title || d.from_name + '이(가) 보내는 마음'}</div>
+      <div class="sent-date">${dt}</div>
+    </div>
+
+    <div class="main-wrap">
+      <!-- 편지 본문 -->
+      <div class="letter-card">
+        <div class="letter-greeting">${d.to_name}에게</div>
+        <div class="letter-body">${d.text}</div>
+        ${emotions ? `<div class="emotion-tags">${emotions}</div>` : ''}
+        <div class="letter-closing">— ${d.from_name} 드림</div>
+      </div>
+
+      <!-- 라디오 방송 -->
+      <div class="radio-header">
+        <div class="on-air"><span class="on-dot"></span> ON AIR</div>
+        <h2>📻 DJ가 만든 특별한 라디오 방송</h2>
+      </div>
+      ${broadcastHtml}
+
+      <!-- 공유 -->
+      <div class="share-bar">
+        <button class="share-btn" onclick="copyLink()">🔗 링크 복사</button>
+        <button class="share-btn" onclick="shareNative()">📤 공유하기</button>
+      </div>
+    </div>`;
+
+  window._shareUrl = location.href;
+}
+
+function renderBroadcast(text, fromName, toName){
+  function extract(key){
+    const m = text.match(new RegExp('\\[SECTION:'+key+'\\]([\\s\\S]*?)(?:\\[/SECTION\\]|$)','i'));
+    return m ? m[1].replace(/\[SUNO:[^\]]+\][\s\S]*?\[\/SUNO\]/gi,'').replace(/\[LYRICS\][\s\S]*?\[\/LYRICS\]/gi,'').trim() : '';
+  }
+  function extractSuno(key){
+    const m = text.match(new RegExp('\\[SUNO:'+key+'\\]([\\s\\S]*?)\\[/SUNO\\]','i'));
+    return m ? m[1].trim() : '';
+  }
+  function extractLyrics(){
+    const m = text.match(/\[LYRICS\]([\s\S]*?)\[\/LYRICS\]/i);
+    return m ? m[1].trim() : '';
+  }
+
+  const sections = [
+    { num:1, label:'🎵 인트로 음악', key:'intro_music', suno:'intro', sub:'INTRO' },
+    { num:2, label:'🎤 DJ 오프닝 멘트', key:'opening', sub:'OPENING' },
+    { num:3, label:'💌 사연 소개', key:'story', sub:'STORY' },
+    { num:4, label:'💬 DJ 소감 & 명언', key:'reflection', sub:'REFLECTION' },
+    { num:5, label:'🎁 선물 음악', key:'gift_music', suno:'gift', lyrics:true, sub:'GIFT MUSIC' },
+    { num:6, label:'🌙 클로징 멘트', key:'closing', sub:'CLOSING' },
+    { num:7, label:'🎵 클로징 음악', key:'outro_music', suno:'outro', sub:'OUTRO' },
+  ];
+
+  return sections.map(sec => {
+    const content = extract(sec.key);
+    if(!content) return '';
+    const suno = sec.suno ? extractSuno(sec.suno) : '';
+    const lyrics = sec.lyrics ? extractLyrics() : '';
+
+    let html = `<div class="sec-block">
+      <div class="sec-head">
+        <div class="sec-num">${sec.num}</div>
+        <div class="sec-label">${sec.label}</div>
+        <div class="sec-sub">${sec.sub}</div>
+      </div>
+      <div class="sec-body">${content}</div>`;
+
+    if(suno) html += `<div class="suno-block">
+      <div class="suno-label">🎵 Suno AI 작곡 프롬프트</div>
+      <div class="suno-prompt">${suno}</div>
+    </div>`;
+
+    if(lyrics) html += `<div class="lyrics-block">
+      <div class="lyrics-label">🎤 ${toName}을(를) 위한 맞춤 가사</div>
+      <div class="lyrics-text">${lyrics}</div>
+    </div>`;
+
+    html += '</div>';
+    return html;
+  }).join('');
+}
+
+function showNotFound(){
+  document.getElementById('loading').style.display = 'none';
+  const app = document.getElementById('app');
+  app.style.display = 'block';
+  app.innerHTML = `<div class="not-found">
+    <div class="icon">📭</div>
+    <h2>편지를 찾을 수 없어요</h2>
+    <p>링크가 잘못되었거나 이미 삭제된 편지입니다.</p>
+  </div>`;
+}
+
+function copyLink(){
+  navigator.clipboard.writeText(location.href)
+    .then(() => alert('링크가 복사됐습니다!'));
+}
+function shareNative(){
+  if(navigator.share){
+    navigator.share({ title:'💌 라디오 편지', url: location.href });
+  } else {
+    copyLink();
+  }
+}
+
+init();
+</script>
+</body>
+</html>

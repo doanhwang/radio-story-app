@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마음을 전해요 — 라디오 사연 편지</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #faf8f4;
+  --paper: #fffef9;
+  --ink: #2c2418;
+  --ink-light: #6b5f4e;
+  --ink-faint: #b8aa96;
+  --accent: #c8622a;
+  --accent-pale: #f9ede4;
+  --gold: #c8962a;
+  --border: #e8e0d0;
+  --border2: #d4c8b4;
+  --red-heart: #e05050;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Noto Sans KR', sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  min-height:100vh;
+  background-image: radial-gradient(circle at 20% 80%, rgba(200,98,42,0.04) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(200,150,42,0.04) 0%, transparent 50%);
+}
+
+/* ── 헤더 ── */
+.header {
+  text-align:center;
+  padding:3rem 1rem 2rem;
+  border-bottom:1px solid var(--border);
+}
+.header-icon { font-size:2rem; margin-bottom:0.6rem; }
+.header h1 {
+  font-family:'Noto Serif KR', serif;
+  font-size:1.6rem; font-weight:600;
+  color:var(--ink); letter-spacing:-0.02em;
+  margin-bottom:0.4rem;
+}
+.header p { font-size:0.88rem; color:var(--ink-light); line-height:1.7; }
+
+/* ── 편지지 ── */
+.letter-wrap {
+  max-width:640px; margin:2.5rem auto; padding:0 1rem 3rem;
+}
+.letter-paper {
+  background:var(--paper);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:2.5rem;
+  box-shadow:0 2px 20px rgba(44,36,24,0.06), 0 0 0 1px var(--border);
+  position:relative;
+}
+.letter-paper::before {
+  content:'';
+  position:absolute; top:0; left:3.5rem; right:0; bottom:0;
+  background:repeating-linear-gradient(transparent, transparent 31px, rgba(200,150,42,0.08) 31px, rgba(200,150,42,0.08) 32px);
+  pointer-events:none;
+}
+
+/* ── 관계 선택 ── */
+.section-label {
+  font-size:0.72rem; font-weight:700; color:var(--accent);
+  letter-spacing:0.12em; text-transform:uppercase;
+  margin-bottom:0.6rem; display:flex; align-items:center; gap:0.4rem;
+}
+.relation-grid {
+  display:grid; grid-template-columns:repeat(2,1fr); gap:0.5rem;
+  margin-bottom:1.8rem;
+}
+.rel-btn {
+  padding:0.65rem 0.8rem; border:1px solid var(--border2);
+  border-radius:6px; background:var(--bg);
+  font-family:'Noto Sans KR',sans-serif; font-size:0.82rem;
+  color:var(--ink-light); cursor:pointer; text-align:center;
+  transition:all 0.18s;
+}
+.rel-btn:hover { border-color:var(--accent); color:var(--accent); }
+.rel-btn.on {
+  border-color:var(--accent); background:var(--accent-pale);
+  color:var(--accent); font-weight:600;
+}
+
+/* ── 입력 필드 ── */
+.field-group { margin-bottom:1.4rem; }
+.field-row { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
+.field-label {
+  font-size:0.78rem; color:var(--ink-light);
+  margin-bottom:0.35rem; display:block;
+}
+.field-input {
+  width:100%; background:transparent;
+  border:none; border-bottom:1px solid var(--border2);
+  padding:0.5rem 0; color:var(--ink);
+  font-family:'Noto Sans KR',sans-serif; font-size:0.9rem;
+  outline:none; transition:border-color 0.2s;
+}
+.field-input:focus { border-bottom-color:var(--accent); }
+.field-input::placeholder { color:var(--ink-faint); }
+
+/* ── 편지 내용 ── */
+.letter-textarea {
+  width:100%; min-height:280px;
+  background:transparent; border:none;
+  padding:0; color:var(--ink);
+  font-family:'Noto Serif KR',serif; font-size:0.95rem;
+  line-height:2; outline:none; resize:none;
+  position:relative; z-index:1;
+}
+.letter-textarea::placeholder { color:var(--ink-faint); font-style:italic; }
+.char-count {
+  text-align:right; font-size:0.72rem;
+  color:var(--ink-faint); margin-top:0.4rem;
+}
+
+/* ── 감정/카테고리 ── */
+.tag-grid {
+  display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.5rem;
+}
+.tag-chip {
+  padding:0.3rem 0.7rem; border:1px solid var(--border2);
+  border-radius:20px; font-size:0.75rem; color:var(--ink-light);
+  cursor:pointer; transition:all 0.15s; background:var(--bg);
+}
+.tag-chip:hover { border-color:var(--accent); color:var(--accent); }
+.tag-chip.on {
+  background:var(--accent); border-color:var(--accent);
+  color:#fff; font-weight:500;
+}
+
+/* ── 구분선 ── */
+.divider {
+  border:none; border-top:1px solid var(--border);
+  margin:1.5rem 0;
+}
+
+/* ── 전송 버튼 ── */
+.send-btn {
+  width:100%; padding:1rem;
+  background:var(--accent); color:#fff;
+  border:none; border-radius:6px;
+  font-family:'Noto Serif KR',serif;
+  font-size:1rem; font-weight:600;
+  cursor:pointer; transition:all 0.2s;
+  letter-spacing:0.02em;
+  margin-top:1.5rem;
+}
+.send-btn:hover { background:#b5551f; transform:translateY(-1px); box-shadow:0 4px 16px rgba(200,98,42,0.3); }
+.send-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+
+/* ── 성공 화면 ── */
+.success-screen {
+  display:none; text-align:center; padding:2rem 0;
+}
+.success-icon { font-size:3rem; margin-bottom:1rem; }
+.success-title {
+  font-family:'Noto Serif KR',serif;
+  font-size:1.3rem; font-weight:600;
+  color:var(--ink); margin-bottom:0.6rem;
+}
+.success-desc { font-size:0.88rem; color:var(--ink-light); line-height:1.8; margin-bottom:1.5rem; }
+.link-box {
+  background:var(--accent-pale); border:1px solid rgba(200,98,42,0.2);
+  border-radius:8px; padding:1rem 1.2rem;
+  margin-bottom:1rem; text-align:left;
+}
+.link-label { font-size:0.7rem; color:var(--accent); font-weight:700; letter-spacing:0.1em; margin-bottom:0.4rem; }
+.link-url {
+  font-family:'DM Mono',monospace; font-size:0.8rem;
+  color:var(--ink); word-break:break-all; line-height:1.5;
+}
+.copy-btn {
+  width:100%; padding:0.75rem;
+  background:var(--ink); color:#fff;
+  border:none; border-radius:6px;
+  font-family:'Noto Sans KR',sans-serif; font-size:0.88rem;
+  cursor:pointer; transition:all 0.2s; margin-bottom:0.5rem;
+}
+.copy-btn:hover { background:#4a3c2a; }
+.kakao-btn {
+  width:100%; padding:0.75rem;
+  background:#FEE500; color:#000;
+  border:none; border-radius:6px;
+  font-family:'Noto Sans KR',sans-serif; font-size:0.88rem; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+}
+.kakao-btn:hover { background:#e6cf00; }
+.new-btn {
+  width:100%; padding:0.65rem;
+  background:transparent; color:var(--accent);
+  border:1px solid var(--accent); border-radius:6px;
+  font-family:'Noto Sans KR',sans-serif; font-size:0.85rem;
+  cursor:pointer; margin-top:0.5rem;
+}
+.new-btn:hover { background:var(--accent-pale); }
+
+/* 오류 */
+.error-msg {
+  color:var(--red-heart); font-size:0.8rem;
+  margin-top:0.8rem; display:none; text-align:center;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">💌</div>
+  <h1>마음을 전해요</h1>
+  <p>소중한 사람에게 사연을 보내세요<br>DJ가 라디오 방송으로 특별하게 전달해 드립니다</p>
+</div>
+
+<div class="letter-wrap">
+  <div class="letter-paper" id="write-form">
+
+    <!-- 관계 선택 -->
+    <div class="field-group">
+      <div class="section-label">💛 누구에게 보내나요?</div>
+      <div class="relation-grid">
+        <button class="rel-btn" data-val="family" onclick="selectRelation(this)">👨‍👩‍👧 가족</button>
+        <button class="rel-btn" data-val="friend" onclick="selectRelation(this)">🤝 친구/지인</button>
+        <button class="rel-btn" data-val="lover" onclick="selectRelation(this)">❤️ 연인/배우자</button>
+        <button class="rel-btn" data-val="anyone" onclick="selectRelation(this)">🌸 누구에게나</button>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 보내는 사람 / 받는 사람 -->
+    <div class="field-group">
+      <div class="field-row">
+        <div>
+          <label class="field-label">✏️ 보내는 사람 (나)</label>
+          <input class="field-input" id="from-name" placeholder="이름 또는 별명" maxlength="20">
+        </div>
+        <div>
+          <label class="field-label">💌 받는 사람</label>
+          <input class="field-input" id="to-name" placeholder="이름 또는 별명" maxlength="20">
+        </div>
+      </div>
+    </div>
+
+    <!-- 제목 -->
+    <div class="field-group">
+      <label class="field-label">📌 제목 (선택)</label>
+      <input class="field-input" id="letter-title" placeholder="예: 엄마, 항상 감사해요" maxlength="50">
+    </div>
+
+    <hr class="divider">
+
+    <!-- 편지 내용 -->
+    <div class="field-group">
+      <div class="section-label">📝 전하고 싶은 말</div>
+      <textarea class="letter-textarea" id="letter-text"
+        placeholder="하고 싶은 말을 자유롭게 적어주세요.
+마음 속에 담아둔 이야기, 고마움, 미안함, 사랑하는 마음…
+DJ가 이 사연을 읽고 특별한 라디오 방송을 만들어 드립니다."
+        oninput="updateCount()" maxlength="2000"></textarea>
+      <div class="char-count"><span id="char-count">0</span> / 2000</div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 감정 태그 -->
+    <div class="field-group">
+      <div class="section-label">🎭 담긴 감정</div>
+      <div class="tag-grid" id="emotion-tags">
+        <span class="tag-chip" onclick="toggleTag(this)">감사</span>
+        <span class="tag-chip" onclick="toggleTag(this)">사랑</span>
+        <span class="tag-chip" onclick="toggleTag(this)">미안함</span>
+        <span class="tag-chip" onclick="toggleTag(this)">그리움</span>
+        <span class="tag-chip" onclick="toggleTag(this)">응원</span>
+        <span class="tag-chip" onclick="toggleTag(this)">자랑스러움</span>
+        <span class="tag-chip" onclick="toggleTag(this)">위로</span>
+        <span class="tag-chip" onclick="toggleTag(this)">기쁨</span>
+        <span class="tag-chip" onclick="toggleTag(this)">설렘</span>
+        <span class="tag-chip" onclick="toggleTag(this)">걱정</span>
+      </div>
+    </div>
+
+    <p class="error-msg" id="error-msg">보내는 사람, 받는 사람, 내용을 입력해주세요.</p>
+
+    <button class="send-btn" id="send-btn" onclick="submitLetter()">
+      💌 편지 보내기
+    </button>
+  </div>
+
+  <!-- 성공 화면 -->
+  <div class="letter-paper success-screen" id="success-screen">
+    <div class="success-icon">🎉</div>
+    <div class="success-title">편지가 만들어졌어요!</div>
+    <div class="success-desc">
+      아래 링크를 <strong id="to-name-display"></strong>에게 공유하세요.<br>
+      링크를 열면 DJ가 만든 특별한 라디오 방송을 함께 볼 수 있어요.
+    </div>
+    <div class="link-box">
+      <div class="link-label">공유 링크</div>
+      <div class="link-url" id="share-url"></div>
+    </div>
+    <button class="copy-btn" onclick="copyLink()">🔗 링크 복사</button>
+    <button class="kakao-btn" onclick="shareKakao()">💬 카카오톡으로 공유</button>
+    <button class="new-btn" onclick="resetForm()">+ 새 편지 쓰기</button>
+  </div>
+</div>
+
+<script>
+let selectedRelation = '';
+
+function selectRelation(el){
+  document.querySelectorAll('.rel-btn').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  selectedRelation = el.dataset.val;
+}
+
+function toggleTag(el){ el.classList.toggle('on'); }
+
+function updateCount(){
+  document.getElementById('char-count').textContent =
+    document.getElementById('letter-text').value.length;
+}
+
+async function submitLetter(){
+  const fromName = document.getElementById('from-name').value.trim();
+  const toName   = document.getElementById('to-name').value.trim();
+  const text     = document.getElementById('letter-text').value.trim();
+  const title    = document.getElementById('letter-title').value.trim();
+  const emotions = [...document.querySelectorAll('.tag-chip.on')].map(t => t.textContent);
+  const errEl    = document.getElementById('error-msg');
+
+  if(!fromName || !toName || !text){
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 전송 중...';
+
+  try {
+    const res = await fetch('/api/letters', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        from_name: fromName,
+        to_name:   toName,
+        title:     title || `${fromName}이(가) ${toName}에게`,
+        text,
+        relation:  selectedRelation || 'anyone',
+        emotions
+      })
+    });
+    const d = await res.json();
+    if(!d.success) throw new Error(d.error || '전송 실패');
+
+    // 성공
+    const url = `${location.origin}/letter/${d.id}`;
+    document.getElementById('share-url').textContent = url;
+    document.getElementById('to-name-display').textContent = toName;
+    document.getElementById('write-form').style.display = 'none';
+    document.getElementById('success-screen').style.display = 'block';
+    window._shareUrl = url;
+    window._toName = toName;
+    window._fromName = fromName;
+
+  } catch(e){
+    errEl.textContent = '오류: ' + e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '💌 편지 보내기';
+  }
+}
+
+function copyLink(){
+  navigator.clipboard.writeText(window._shareUrl)
+    .then(() => alert('링크가 복사됐습니다!'));
+}
+
+function shareKakao(){
+  // 카카오 SDK 없으면 링크 복사로 대체
+  const text = `${window._fromName}이(가) 당신에게 라디오 편지를 보냈어요 💌\n\n${window._shareUrl}`;
+  if(navigator.share){
+    navigator.share({ title:'라디오 편지 💌', text, url: window._shareUrl });
+  } else {
+    navigator.clipboard.writeText(text).then(() => alert('카카오톡에 붙여넣기 하세요!\n\n' + text));
+  }
+}
+
+function resetForm(){
+  document.getElementById('write-form').style.display = 'block';
+  document.getElementById('success-screen').style.display = 'none';
+  document.getElementById('from-name').value = '';
+  document.getElementById('to-name').value = '';
+  document.getElementById('letter-title').value = '';
+  document.getElementById('letter-text').value = '';
+  document.getElementById('char-count').textContent = '0';
+  document.querySelectorAll('.tag-chip.on, .rel-btn.on').forEach(el => el.classList.remove('on'));
+  selectedRelation = '';
+  const btn = document.getElementById('send-btn');
+  btn.disabled = false;
+  btn.textContent = '💌 편지 보내기';
+}
+</script>
+</body>
+</html>
