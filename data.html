@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLOSSOM DATA — Data Moat Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #080c10;
+  --surface: #0d1219;
+  --card: #111820;
+  --card2: #161f2a;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.1);
+  --text: #e8edf2;
+  --muted: #6b7f94;
+  --faint: rgba(255,255,255,0.03);
+
+  --green: #00e5a0;
+  --cyan: #00c8e0;
+  --gold: #f0c060;
+  --purple: #a060f0;
+  --pink: #f060a0;
+  --red: #f06060;
+  --blue: #4080f0;
+
+  --green-dim: rgba(0,229,160,0.1);
+  --cyan-dim: rgba(0,200,224,0.1);
+  --gold-dim: rgba(240,192,96,0.1);
+  --purple-dim: rgba(160,96,240,0.1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Noto Sans KR', sans-serif;
+  background:var(--bg); color:var(--text);
+  min-height:100vh;
+  background-image:
+    radial-gradient(ellipse at 0% 0%, rgba(0,229,160,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 100%, rgba(160,96,240,0.04) 0%, transparent 50%);
+}
+
+/* ── 로그인 ── */
+#login-screen {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; min-height:100vh; gap:1.5rem;
+}
+.login-logo {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:3rem; letter-spacing:0.2em; color:var(--green);
+  text-shadow: 0 0 40px rgba(0,229,160,0.3);
+}
+.login-sub { font-size:0.8rem; color:var(--muted); letter-spacing:0.2em; text-transform:uppercase; }
+.login-box {
+  background:var(--card); border:1px solid var(--border2);
+  border-radius:12px; padding:2rem; width:320px;
+}
+.login-box input {
+  width:100%; background:var(--card2); border:1px solid var(--border2);
+  color:var(--text); padding:0.8rem 1rem; border-radius:8px;
+  font-family:'Space Mono',monospace; font-size:0.85rem; outline:none;
+  margin-bottom:0.8rem;
+}
+.login-box input:focus { border-color:var(--green); }
+.login-box button {
+  width:100%; padding:0.8rem;
+  background:var(--green); color:#000;
+  border:none; border-radius:8px;
+  font-family:'Noto Sans KR',sans-serif; font-size:0.9rem; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+}
+.login-box button:hover { filter:brightness(1.1); }
+.login-err { color:var(--red); font-size:0.78rem; text-align:center; display:none; margin-top:0.4rem; }
+
+/* ── 앱 ── */
+#app { display:none; }
+
+/* ── 헤더 ── */
+.header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:1rem 2rem; border-bottom:1px solid var(--border);
+  background:var(--surface); position:sticky; top:0; z-index:100;
+}
+.header-logo {
+  font-family:'Bebas Neue', sans-serif;
+  font-size:1.4rem; letter-spacing:0.15em; color:var(--green);
+}
+.header-logo span { color:var(--muted); font-size:0.9rem; }
+.header-right { display:flex; align-items:center; gap:0.8rem; }
+.live-badge {
+  display:flex; align-items:center; gap:0.4rem;
+  font-family:'Space Mono',monospace; font-size:0.68rem;
+  color:var(--green); letter-spacing:0.1em;
+}
+.live-dot { width:6px; height:6px; background:var(--green); border-radius:50%; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,229,160,0.4)} 50%{opacity:0.6;box-shadow:0 0 0 6px rgba(0,229,160,0)} }
+
+.hbtn {
+  padding:0.5rem 1rem; background:transparent;
+  border:1px solid var(--border2); border-radius:6px;
+  color:var(--muted); font-family:'Noto Sans KR',sans-serif;
+  font-size:0.78rem; cursor:pointer; transition:all 0.2s;
+}
+.hbtn:hover { border-color:var(--green); color:var(--green); }
+.hbtn.accent { background:var(--green-dim); border-color:var(--green); color:var(--green); }
+
+/* ── 메인 레이아웃 ── */
+.main { padding:2rem; max-width:1400px; margin:0 auto; }
+
+/* ── 섹션 헤더 ── */
+.sec-head {
+  display:flex; align-items:baseline; gap:0.8rem;
+  margin-bottom:1.2rem; margin-top:2.5rem;
+}
+.sec-head:first-child { margin-top:0; }
+.sec-title {
+  font-family:'Space Mono',monospace; font-size:0.7rem;
+  color:var(--green); letter-spacing:0.2em; text-transform:uppercase;
+}
+.sec-line { flex:1; height:1px; background:var(--border); }
+
+/* ── KPI 카드 ── */
+.kpi-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1rem;
+  margin-bottom:0.5rem;
+}
+.kpi-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:1.2rem 1.4rem;
+  position:relative; overflow:hidden; transition:border-color 0.2s;
+}
+.kpi-card:hover { border-color:var(--border2); }
+.kpi-card::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg, rgba(255,255,255,0.015) 0%, transparent 60%);
+}
+.kpi-label {
+  font-size:0.68rem; color:var(--muted);
+  font-family:'Space Mono',monospace; letter-spacing:0.1em;
+  text-transform:uppercase; margin-bottom:0.5rem;
+}
+.kpi-val {
+  font-family:'Bebas Neue',sans-serif; font-size:2.4rem;
+  line-height:1; margin-bottom:0.3rem;
+}
+.kpi-sub { font-size:0.72rem; color:var(--muted); }
+.kpi-green .kpi-val { color:var(--green); }
+.kpi-cyan .kpi-val { color:var(--cyan); }
+.kpi-gold .kpi-val { color:var(--gold); }
+.kpi-purple .kpi-val { color:var(--purple); }
+.kpi-pink .kpi-val { color:var(--pink); }
+.kpi-blue .kpi-val { color:var(--blue); }
+
+/* ── 차트 그리드 ── */
+.chart-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.chart-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+.chart-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:1.4rem;
+}
+.chart-title {
+  font-size:0.7rem; font-family:'Space Mono',monospace;
+  color:var(--muted); letter-spacing:0.12em; text-transform:uppercase;
+  margin-bottom:1rem;
+}
+.chart-title span { color:var(--text); }
+canvas { max-height:220px; }
+
+/* ── 키워드 클라우드 ── */
+.keyword-cloud {
+  display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;
+}
+.kw-tag {
+  display:inline-block; padding:0.3rem 0.7rem;
+  border-radius:4px; font-size:var(--size);
+  font-weight:600; transition:transform 0.15s;
+  cursor:default;
+}
+.kw-tag:hover { transform:scale(1.1); }
+
+/* ── 이력 테이블 ── */
+.data-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+.data-table th {
+  text-align:left; padding:0.6rem 0.8rem;
+  border-bottom:1px solid var(--border);
+  font-family:'Space Mono',monospace; font-size:0.65rem;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--muted);
+  font-weight:400;
+}
+.data-table td {
+  padding:0.7rem 0.8rem; border-bottom:1px solid var(--faint);
+  vertical-align:middle;
+}
+.data-table tr:hover td { background:var(--faint); }
+.badge {
+  display:inline-block; padding:0.15rem 0.5rem;
+  border-radius:4px; font-size:0.68rem; font-weight:600;
+}
+.badge-green { background:var(--green-dim); color:var(--green); }
+.badge-gold  { background:var(--gold-dim);  color:var(--gold); }
+.badge-purple{ background:var(--purple-dim);color:var(--purple); }
+.badge-cyan  { background:var(--cyan-dim);  color:var(--cyan); }
+
+/* ── Data Moat 증빙 섹션 ── */
+.moat-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.moat-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:1.4rem;
+}
+.moat-card-title {
+  font-family:'Space Mono',monospace; font-size:0.68rem;
+  letter-spacing:0.12em; text-transform:uppercase;
+  margin-bottom:1rem;
+}
+.moat-stat-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:0.5rem 0; border-bottom:1px solid var(--border);
+}
+.moat-stat-row:last-child { border-bottom:none; }
+.moat-stat-label { font-size:0.8rem; color:var(--muted); }
+.moat-stat-val { font-family:'Space Mono',monospace; font-size:0.88rem; font-weight:700; }
+
+/* ── 내보내기 섹션 ── */
+.export-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+.export-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:1.4rem; text-align:center;
+  transition:all 0.2s; cursor:pointer;
+}
+.export-card:hover { border-color:var(--green); background:var(--green-dim); }
+.export-icon { font-size:2rem; margin-bottom:0.6rem; }
+.export-title { font-size:0.85rem; font-weight:600; margin-bottom:0.3rem; }
+.export-desc { font-size:0.72rem; color:var(--muted); line-height:1.5; }
+
+/* ── 로딩 ── */
+.loading {
+  display:flex; align-items:center; justify-content:center;
+  padding:4rem; color:var(--muted); font-family:'Space Mono',monospace;
+  font-size:0.8rem; letter-spacing:0.1em;
+}
+.loading::after {
+  content:''; display:inline-block; width:16px; height:16px;
+  border:2px solid var(--border2); border-top-color:var(--green);
+  border-radius:50%; animation:spin 0.8s linear infinite; margin-left:0.8rem;
+}
+@keyframes spin { to { transform:rotate(360deg) } }
+
+/* ── 반응형 ── */
+@media(max-width:900px){
+  .kpi-grid { grid-template-columns:repeat(2,1fr); }
+  .chart-grid-2, .chart-grid-3, .moat-grid, .export-grid { grid-template-columns:1fr; }
+  .main { padding:1rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="login-screen">
+  <div class="login-logo">BLOSSOM DATA</div>
+  <div class="login-sub">Data Moat Dashboard</div>
+  <div class="login-box">
+    <input type="password" id="pw-input" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">접속</button>
+    <div class="login-err" id="login-err">비밀번호가 틀렸습니다</div>
+  </div>
+</div>
+
+<!-- 앱 -->
+<div id="app">
+  <header class="header">
+    <div class="header-logo">BLOSSOM DATA <span>/ DATA MOAT DASHBOARD</span></div>
+    <div class="header-right">
+      <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+      <button class="hbtn" onclick="loadData()">🔄 새로고침</button>
+      <button class="hbtn accent" onclick="exportDataset()" id="export-btn">⬇ LLM 데이터셋</button>
+      <button class="hbtn" onclick="location.href='/admin'">← 관리자</button>
+    </div>
+  </header>
+
+  <div class="main" id="main-content">
+    <div class="loading">데이터 로딩 중</div>
+  </div>
+</div>
+
+<script>
+const ADMIN_PW = 'radio1234';
+
+function doLogin(){
+  if(document.getElementById('pw-input').value === ADMIN_PW){
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadData();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+  }
+}
+
+let chartInstances = {};
+
+function destroyChart(id){
+  if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+function mkChart(id, config){
+  destroyChart(id);
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if(!ctx) return;
+  chartInstances[id] = new Chart(ctx, config);
+}
+
+const COLORS = ['#00e5a0','#00c8e0','#f0c060','#a060f0','#f060a0','#4080f0','#f06060','#60d060'];
+
+async function loadData(){
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="loading">데이터 로딩 중</div>';
+
+  try {
+    const res = await fetch('/api/data/overview');
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    renderDashboard(d);
+  } catch(e){
+    main.innerHTML = `<div class="loading">❗ 로드 실패: ${e.message}</div>`;
+  }
+}
+
+function renderDashboard(d){
+  const s = d.summary;
+  const main = document.getElementById('main-content');
+
+  main.innerHTML = `
+    <!-- ── KPI ── -->
+    <div class="sec-head"><div class="sec-title">핵심 지표</div><div class="sec-line"></div></div>
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-green">
+        <div class="kpi-label">총 사연 수집</div>
+        <div class="kpi-val">${s.total_stories}</div>
+        <div class="kpi-sub">음성 포함 ${s.has_voice_rate}%</div>
+      </div>
+      <div class="kpi-card kpi-cyan">
+        <div class="kpi-label">DJ 방송 제작</div>
+        <div class="kpi-val">${s.total_broadcasts}</div>
+        <div class="kpi-sub">전환율 ${s.conversion_rate}%</div>
+      </div>
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-label">편지 (A→B)</div>
+        <div class="kpi-val">${s.total_letters}</div>
+        <div class="kpi-sub">방송 완료 ${s.letters_with_broadcast}건</div>
+      </div>
+      <div class="kpi-card kpi-gold">
+        <div class="kpi-label">총 API 비용</div>
+        <div class="kpi-val">$${s.total_cost_usd}</div>
+        <div class="kpi-sub">₩${Math.round(Number(s.total_cost_usd)*1380).toLocaleString()}</div>
+      </div>
+    </div>
+
+    <!-- ── 시계열 + 감정 분포 ── -->
+    <div class="sec-head"><div class="sec-title">트렌드 분석</div><div class="sec-line"></div></div>
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-title"><span>일별 사연 제출</span> · Daily Submissions</div>
+        <canvas id="chart-daily"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><span>감정 분포</span> · Emotion Distribution</div>
+        <canvas id="chart-emotion"></canvas>
+      </div>
+    </div>
+
+    <!-- ── 청취자 유형 + 장르 + 톤 ── -->
+    <div class="sec-head"><div class="sec-title">콘텐츠 분석</div><div class="sec-line"></div></div>
+    <div class="chart-grid-3">
+      <div class="chart-card">
+        <div class="chart-title"><span>청취자 유형</span> · Audience Type</div>
+        <canvas id="chart-audience"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><span>음악 장르</span> · Music Genre</div>
+        <canvas id="chart-genre"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><span>DJ 방송 톤</span> · Broadcast Tone</div>
+        <canvas id="chart-tone"></canvas>
+      </div>
+    </div>
+
+    <!-- ── 키워드 클라우드 ── -->
+    <div class="sec-head"><div class="sec-title">키워드 빈도 분석</div><div class="sec-line"></div></div>
+    <div class="chart-card" style="margin-bottom:1rem;">
+      <div class="chart-title"><span>사연 핵심 키워드</span> · Keyword Frequency (LLM 튜닝 어휘 참조용)</div>
+      <div class="keyword-cloud" id="keyword-cloud"></div>
+    </div>
+
+    <!-- ── Data Moat 증빙 ── -->
+    <div class="sec-head"><div class="sec-title">DATA MOAT 지표</div><div class="sec-line"></div></div>
+    <div class="moat-grid">
+      <div class="moat-card">
+        <div class="moat-card-title" style="color:var(--green);">🧬 데이터 독점성 지표</div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">수집된 사연 (학습 샘플)</span>
+          <span class="moat-stat-val" style="color:var(--green);">${s.total_stories}개</span>
+        </div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">DJ 생성 페어 데이터 (입력→출력)</span>
+          <span class="moat-stat-val" style="color:var(--cyan);">${s.total_broadcasts}쌍</span>
+        </div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">음성 포함 멀티모달 데이터</span>
+          <span class="moat-stat-val" style="color:var(--gold);">${Math.round(s.total_stories * s.has_voice_rate / 100)}개</span>
+        </div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">사연→방송 전환율 (파인튜닝 품질)</span>
+          <span class="moat-stat-val" style="color:var(--purple);">${s.conversion_rate}%</span>
+        </div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">평균 가사 라인 수</span>
+          <span class="moat-stat-val" style="color:var(--pink);">${s.avg_lyrics_lines}줄</span>
+        </div>
+      </div>
+      <div class="moat-card">
+        <div class="moat-card-title" style="color:var(--gold);">🎯 LLM 파인튜닝 준비도</div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">구조화 입출력 페어</span>
+          <span class="moat-stat-val" style="color:var(--green);">${s.total_broadcasts}개</span>
+        </div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">감정 레이블 태깅 완료</span>
+          <span class="moat-stat-val" style="color:var(--cyan);">${s.total_stories + s.total_broadcasts}건</span>
+        </div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">7섹션 구조화 스크립트</span>
+          <span class="moat-stat-val" style="color:var(--gold);">${s.total_broadcasts}개</span>
+        </div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">한국어 돌봄/장애 도메인 특화</span>
+          <span class="moat-stat-val" style="color:var(--purple);">✅ 희귀 도메인</span>
+        </div>
+        <div class="moat-stat-row">
+          <span class="moat-stat-label">JSONL 데이터셋 즉시 export 가능</span>
+          <span class="moat-stat-val" style="color:var(--pink);">✅ 준비 완료</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 최근 방송 이력 ── -->
+    <div class="sec-head"><div class="sec-title">최근 방송 생성 이력</div><div class="sec-line"></div></div>
+    <div class="chart-card" style="overflow-x:auto;">
+      <table class="data-table" id="broadcast-table">
+        <thead>
+          <tr>
+            <th>#</th><th>사연자</th><th>DJ</th><th>톤</th><th>장르</th>
+            <th>감지 감정</th><th>가사</th><th>비용</th><th>일시</th>
+          </tr>
+        </thead>
+        <tbody id="broadcast-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- ── 데이터 내보내기 ── -->
+    <div class="sec-head"><div class="sec-title">데이터 내보내기</div><div class="sec-line"></div></div>
+    <div class="export-grid">
+      <div class="export-card" onclick="exportDataset()">
+        <div class="export-icon">🧠</div>
+        <div class="export-title">LLM 파인튜닝 데이터셋</div>
+        <div class="export-desc">사연→방송 구조화 페어<br>JSONL 포맷 (OpenAI/HuggingFace 호환)</div>
+      </div>
+      <div class="export-card" onclick="exportStories()">
+        <div class="export-icon">📊</div>
+        <div class="export-title">전체 사연 CSV</div>
+        <div class="export-desc">감정 태그, 청취자 유형, 제출 시간<br>데이터 분석 및 리포트용</div>
+      </div>
+      <div class="export-card" onclick="exportBroadcasts()">
+        <div class="export-icon">📻</div>
+        <div class="export-title">방송 스크립트 전체</div>
+        <div class="export-desc">7섹션 + 가사 + Suno 프롬프트<br>콘텐츠 자산 아카이브</div>
+      </div>
+    </div>
+    <div style="height:3rem;"></div>
+  `;
+
+  // 차트 렌더링
+  renderCharts(d);
+
+  // 키워드 클라우드
+  renderKeywords(d.top_keywords);
+
+  // 최근 방송 테이블
+  renderBroadcastTable(d.recent_broadcasts);
+}
+
+function renderCharts(d){
+  const gridColor = 'rgba(255,255,255,0.04)';
+  const tickColor = '#6b7f94';
+
+  // 일별 사연
+  mkChart('chart-daily', {
+    type:'line',
+    data:{
+      labels: d.daily_submissions.map(x=>x.date.slice(5)),
+      datasets:[{
+        label:'사연',
+        data: d.daily_submissions.map(x=>x.count),
+        borderColor:'#00e5a0', backgroundColor:'rgba(0,229,160,0.08)',
+        tension:0.4, fill:true, pointRadius:3, pointBackgroundColor:'#00e5a0',
+      }]
+    },
+    options:{
+      responsive:true, plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:gridColor},ticks:{color:tickColor,font:{size:10}}},
+        y:{grid:{color:gridColor},ticks:{color:tickColor,font:{size:10}},beginAtZero:true},
+      }
+    }
+  });
+
+  // 감정 분포
+  const emoTop = d.emotion_distribution.slice(0,8);
+  mkChart('chart-emotion', {
+    type:'bar',
+    data:{
+      labels: emoTop.map(x=>x.name),
+      datasets:[{
+        data: emoTop.map(x=>x.count),
+        backgroundColor: COLORS.map(c => c+'99'),
+        borderColor: COLORS, borderWidth:1, borderRadius:4,
+      }]
+    },
+    options:{
+      responsive:true, plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:gridColor},ticks:{color:tickColor,font:{size:10}}},
+        y:{grid:{color:gridColor},ticks:{color:tickColor,font:{size:10}},beginAtZero:true},
+      }
+    }
+  });
+
+  // 청취자 유형
+  const audMap = {self:'당사자',parent:'부모',helper:'지원사',care:'돌봄',letter:'편지'};
+  mkChart('chart-audience', {
+    type:'doughnut',
+    data:{
+      labels: d.audience_distribution.map(x=>audMap[x.name]||x.name),
+      datasets:[{data:d.audience_distribution.map(x=>x.count), backgroundColor:COLORS, borderWidth:0}]
+    },
+    options:{responsive:true, plugins:{legend:{position:'bottom',labels:{color:tickColor,font:{size:11},padding:8}}}}
+  });
+
+  // 장르
+  mkChart('chart-genre', {
+    type:'doughnut',
+    data:{
+      labels: d.genre_distribution.map(x=>x.name||'미지정'),
+      datasets:[{data:d.genre_distribution.map(x=>x.count), backgroundColor:COLORS.slice(2), borderWidth:0}]
+    },
+    options:{responsive:true, plugins:{legend:{position:'bottom',labels:{color:tickColor,font:{size:11},padding:8}}}}
+  });
+
+  // 톤
+  mkChart('chart-tone', {
+    type:'bar',
+    data:{
+      labels: d.tone_distribution.map(x=>x.name||'미지정'),
+      datasets:[{
+        data:d.tone_distribution.map(x=>x.count),
+        backgroundColor:'rgba(160,96,240,0.5)', borderColor:'#a060f0',
+        borderWidth:1, borderRadius:4,
+      }]
+    },
+    options:{
+      responsive:true, indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:gridColor},ticks:{color:tickColor,font:{size:10}},beginAtZero:true},
+        y:{grid:{color:gridColor},ticks:{color:tickColor,font:{size:10}}},
+      }
+    }
+  });
+}
+
+function renderKeywords(keywords){
+  if(!keywords?.length) return;
+  const cloud = document.getElementById('keyword-cloud');
+  const max = keywords[0]?.count || 1;
+  cloud.innerHTML = keywords.map((kw, i) => {
+    const size = 0.75 + (kw.count / max) * 1.2;
+    const color = COLORS[i % COLORS.length];
+    const bg = color + '22';
+    return `<span class="kw-tag" style="font-size:${size}rem;color:${color};background:${bg};border:1px solid ${color}44;">
+      ${kw.word} <sup style="font-size:0.6rem;opacity:0.6;">${kw.count}</sup>
+    </span>`;
+  }).join('');
+}
+
+function renderBroadcastTable(records){
+  const tbody = document.getElementById('broadcast-tbody');
+  if(!records?.length){ tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">아직 방송이 없습니다</td></tr>'; return; }
+
+  tbody.innerHTML = records.map((r,i) => {
+    const cost = Number(r.total_cost_usd) || 0;
+    const dt = r.created_at ? new Date(r.created_at).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    const emotions = (r.detected_emotions||[]).slice(0,3).map(e=>`<span class="badge badge-purple">${e}</span>`).join(' ');
+    return `<tr>
+      <td style="color:var(--muted);font-family:'Space Mono',monospace;font-size:0.7rem;">${i+1}</td>
+      <td style="font-weight:600;">${r.story_name||'—'}</td>
+      <td style="color:var(--muted);">${r.dj_name||'—'}</td>
+      <td><span class="badge badge-cyan">${r.dj_tone||'—'}</span></td>
+      <td><span class="badge badge-gold">${r.music_genre||'—'}</span></td>
+      <td>${emotions||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="font-family:'Space Mono',monospace;font-size:0.75rem;color:var(--green);">${r.lyrics_lines||0}줄</td>
+      <td style="font-family:'Space Mono',monospace;font-size:0.75rem;color:var(--gold);">$${cost.toFixed(5)}</td>
+      <td style="color:var(--muted);font-size:0.72rem;">${dt}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function exportDataset(){
+  const btn = document.getElementById('export-btn');
+  if(btn) { btn.textContent = '⏳ 생성 중...'; btn.disabled = true; }
+  try {
+    const res = await fetch('/api/data/export/dataset');
+    const text = await res.text();
+    download('blossom_dataset.jsonl', text, 'application/json');
+  } catch(e){ alert('내보내기 실패: '+e.message); }
+  finally {
+    if(btn) { btn.textContent = '⬇ LLM 데이터셋'; btn.disabled = false; }
+  }
+}
+
+async function exportStories(){
+  try {
+    const res = await fetch('/api/stories?limit=10000');
+    const d = await res.json();
+    const rows = [['id','이름','텍스트','카테고리','감정','청취자유형','음성여부','생성일']];
+    (d.items||[]).forEach(s => rows.push([
+      s.id, s.name, (s.text||'').replace(/,/g,'，'),
+      s.category, (s.emotions||[]).join('|'),
+      s.audience_type, s.has_voice?'Y':'N', s.created_at
+    ]));
+    download('blossom_stories.csv', rows.map(r=>r.join(',')).join('\n'), 'text/csv');
+  } catch(e){ alert('내보내기 실패: '+e.message); }
+}
+
+async function exportBroadcasts(){
+  try {
+    const res = await fetch('/api/dj/usage');
+    const d = await res.json();
+    const data = JSON.stringify(d.records, null, 2);
+    download('blossom_broadcasts.json', data, 'application/json');
+  } catch(e){ alert('내보내기 실패: '+e.message); }
+}
+
+function download(filename, content, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type}));
+  a.download = filename;
+  a.click();
+}
+</script>
+</body>
+</html>
