@@ -632,3 +632,51 @@ app.listen(PORT, () => {
   console.log(`🗄️  Supabase 연결됨: ${SUPABASE_URL}`);
   console.log(`📦  음성 파일: Supabase Storage (voices 버킷)`);
 });
+
+// ─── 시뮬레이션 전용 AI 텍스트 생성 프록시 ──────────
+app.post('/api/sim/generate', async (req, res) => {
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+  if (!ANTHROPIC_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY 미설정' });
+
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'prompt 없음' });
+
+  try {
+    const body = JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const options = {
+      hostname: 'api.anthropic.com',
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    };
+
+    const apiReq = https.request(options, (apiRes) => {
+      let data = '';
+      apiRes.on('data', chunk => data += chunk);
+      apiRes.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          const text = parsed.content?.[0]?.text || '';
+          res.json({ success: true, text });
+        } catch(e) {
+          res.status(500).json({ error: '응답 파싱 오류' });
+        }
+      });
+    });
+    apiReq.on('error', e => res.status(500).json({ error: e.message }));
+    apiReq.write(body);
+    apiReq.end();
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
