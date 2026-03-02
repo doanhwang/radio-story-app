@@ -32,6 +32,7 @@ app.get('/test', (req, res) => res.sendFile(path.join(__dirname, 'test.html')));
 // /story?type=care    → 치매 가족 돌봄자
 app.get('/story', (req, res) => res.sendFile(path.join(__dirname, 'story.html')));
 app.get('/dj', (req, res) => res.sendFile(path.join(__dirname, 'dj.html')));
+app.get('/data', (req, res) => res.sendFile(path.join(__dirname, 'data.html')));
 app.get('/letter', (req, res) => res.sendFile(path.join(__dirname, 'letter.html')));
 app.get('/letter/:id', (req, res) => res.sendFile(path.join(__dirname, 'letter-view.html')));
 app.get('/manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'manifest.json')));
@@ -167,9 +168,33 @@ app.post('/api/dj/generate', async (req, res) => {
       res.write('data: [DONE]\n\n');
       res.end();
 
-      // 비용 계산
+      // 비용 계산 및 구조화 저장
       if (inputTokens > 0 || outputTokens > 0) {
         const { inputCost, outputCost, totalCost } = calcCost(inputTokens, outputTokens, MODEL);
+
+        // ── 섹션 파싱 (Data Moat 핵심) ──
+        function extractSec(key) {
+          const m = fullText.match(new RegExp('\\[SECTION:'+key+'\\]([\\s\\S]*?)(?:\\[/SECTION\\]|$)', 'i'));
+          return m ? m[1].replace(/\[SUNO:[^\]]+\][\s\S]*?\[\/SUNO\]/gi,'').replace(/\[LYRICS\][\s\S]*?\[\/LYRICS\]/gi,'').trim() : '';
+        }
+        function extractSuno(key) {
+          const m = fullText.match(new RegExp('\\[SUNO:'+key+'\\]([\\s\\S]*?)\\[\/SUNO\\]', 'i'));
+          return m ? m[1].trim() : '';
+        }
+        function extractLyrics() {
+          const m = fullText.match(/\[LYRICS\]([\s\S]*?)\[\/LYRICS\]/i);
+          return m ? m[1].trim() : '';
+        }
+
+        // 감정 키워드 추출 (Data Moat: 언어 패턴 분석용)
+        const emotionKeywords = ['감사','사랑','미안','그리움','응원','위로','기쁨','슬픔','외로움','희망','걱정','자랑','행복','아픔','보고싶'];
+        const detectedEmotions = emotionKeywords.filter(kw => fullText.includes(kw));
+
+        // 가사 품질 지표
+        const lyrics = extractLyrics();
+        const lyricsLines = lyrics ? lyrics.split('\n').filter(l=>l.trim()).length : 0;
+        const hasSections = ['Verse','Chorus','Bridge','Outro'].filter(k => lyrics.includes(k)).length;
+
         const record = {
           id: uuidv4(),
           created_at: new Date().toISOString(),
@@ -186,16 +211,34 @@ app.post('/api/dj/generate', async (req, res) => {
           output_cost_usd: outputCost,
           total_cost_usd: totalCost,
           full_text: fullText,
+          // 구조화 섹션 (LLM 튜닝 데이터셋용)
+          sec_intro: extractSec('intro_music'),
+          sec_opening: extractSec('opening'),
+          sec_story: extractSec('story'),
+          sec_reflection: extractSec('reflection'),
+          sec_gift_music: extractSec('gift_music'),
+          sec_closing: extractSec('closing'),
+          sec_outro: extractSec('outro_music'),
+          suno_intro: extractSuno('intro'),
+          suno_gift: extractSuno('gift'),
+          suno_outro: extractSuno('outro'),
+          lyrics: lyrics,
+          // Data Moat 지표
+          detected_emotions: detectedEmotions,
+          lyrics_lines: lyricsLines,
+          lyrics_sections_count: hasSections,
+          word_count: fullText.split(/\s+/).length,
+          char_count: fullText.length,
         };
 
-        // 1) 메모리에 항상 저장 (즉시, 신뢰성 높음)
+        // 1) 메모리에 항상 저장
         usageMemory.unshift(record);
         if (usageMemory.length > 500) usageMemory.pop();
-        console.log(`💰 DJ 생성 비용: $${totalCost.toFixed(6)} (in:${inputTokens} / out:${outputTokens})`);
+        console.log(\`💰 DJ 생성: $\${totalCost.toFixed(6)} | \${detectedEmotions.join(',')||'감정없음'} | 가사\${lyricsLines}줄\`);
 
-        // 2) Supabase에도 저장 시도 (실패해도 무시)
+        // 2) Supabase 저장
         supabase.from('api_cost').insert([record]).then(({ error }) => {
-          if (error) console.warn('dj_usage Supabase 저장 실패 (무시):', error.message);
+          if (error) console.warn('api_cost 저장 실패:', error.message);
         });
       }
     });
@@ -441,6 +484,138 @@ app.patch('/api/letters/:id/broadcast', async (req, res) => {
       .eq('id', req.params.id);
     if(error) throw error;
     res.json({ success: true });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Data Moat 분석 API ────────────────────────
+app.get('/api/data/overview', async (req, res) => {
+  try {
+    const [storiesRes, broadcastsRes, lettersRes] = await Promise.all([
+      supabase.from('stories').select('id,created_at,audience_type,category,emotions,has_voice,ai_emotion'),
+      supabase.from('api_cost').select('*').order('created_at', { ascending: false }),
+      supabase.from('letters').select('id,created_at,relation,emotions,broadcast_at'),
+    ]);
+
+    const stories    = storiesRes.data  || [];
+    const broadcasts = broadcastsRes.data || [];
+    const letters    = lettersRes.data  || [];
+
+    // 감정 분포
+    const emotionMap = {};
+    [...stories, ...letters].forEach(r => {
+      (r.emotions||[]).forEach(e => { emotionMap[e] = (emotionMap[e]||0) + 1; });
+    });
+    broadcasts.forEach(b => {
+      (b.detected_emotions||[]).forEach(e => { emotionMap[e] = (emotionMap[e]||0) + 1; });
+    });
+
+    // 전환율 (사연→DJ 방송)
+    const storiesWithBroadcast = broadcasts.filter(b => b.story_id).length;
+    const conversionRate = stories.length > 0 ? (storiesWithBroadcast / stories.length * 100).toFixed(1) : 0;
+
+    // 청취자 유형별 분포
+    const audienceMap = {};
+    stories.forEach(s => { audienceMap[s.audience_type] = (audienceMap[s.audience_type]||0) + 1; });
+
+    // 음악 장르 분포
+    const genreMap = {};
+    broadcasts.forEach(b => { if(b.music_genre) genreMap[b.music_genre] = (genreMap[b.music_genre]||0) + 1; });
+
+    // 톤 분포
+    const toneMap = {};
+    broadcasts.forEach(b => { if(b.dj_tone) toneMap[b.dj_tone] = (toneMap[b.dj_tone]||0) + 1; });
+
+    // 시계열 (일별 사연 제출)
+    const dailyMap = {};
+    stories.forEach(s => {
+      const d = s.created_at?.slice(0,10);
+      if(d) dailyMap[d] = (dailyMap[d]||0) + 1;
+    });
+
+    // 가사 품질 평균
+    const lyricsData = broadcasts.filter(b => b.lyrics_lines > 0);
+    const avgLyricsLines = lyricsData.length
+      ? (lyricsData.reduce((sum,b) => sum + (b.lyrics_lines||0), 0) / lyricsData.length).toFixed(1)
+      : 0;
+
+    // 총 비용
+    const totalCost = broadcasts.reduce((s,b) => s + (Number(b.total_cost_usd)||0), 0);
+
+    // 키워드 빈도 (사연 텍스트에서)
+    const keywordMap = {};
+    const stopWords = new Set(['이','그','저','것','수','등','및','또','로','의','가','을','를','은','는','에','서','와','과','도','으로','에서','이다','있다','하다','되다']);
+    stories.forEach(s => {
+      (s.text||'').replace(/[^가-힣a-zA-Z\s]/g,'').split(/\s+/).forEach(w => {
+        if(w.length >= 2 && !stopWords.has(w)) keywordMap[w] = (keywordMap[w]||0) + 1;
+      });
+    });
+    const topKeywords = Object.entries(keywordMap)
+      .sort((a,b) => b[1]-a[1]).slice(0,30)
+      .map(([word, count]) => ({ word, count }));
+
+    res.json({
+      summary: {
+        total_stories: stories.length,
+        total_broadcasts: broadcasts.length,
+        total_letters: letters.length,
+        letters_with_broadcast: letters.filter(l => l.broadcast_at).length,
+        conversion_rate: conversionRate,
+        total_cost_usd: totalCost.toFixed(4),
+        avg_lyrics_lines: avgLyricsLines,
+        has_voice_rate: stories.length ? (stories.filter(s=>s.has_voice).length/stories.length*100).toFixed(1) : 0,
+      },
+      emotion_distribution: Object.entries(emotionMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({name:k,count:v})),
+      audience_distribution: Object.entries(audienceMap).map(([k,v])=>({name:k,count:v})),
+      genre_distribution: Object.entries(genreMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({name:k,count:v})),
+      tone_distribution: Object.entries(toneMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({name:k,count:v})),
+      daily_submissions: Object.entries(dailyMap).sort().map(([date,count])=>({date,count})),
+      top_keywords: topKeywords,
+      recent_broadcasts: broadcasts.slice(0,10).map(b => ({
+        id: b.id, story_name: b.story_name, dj_name: b.dj_name,
+        dj_tone: b.dj_tone, music_genre: b.music_genre,
+        total_cost_usd: b.total_cost_usd, lyrics_lines: b.lyrics_lines,
+        detected_emotions: b.detected_emotions, created_at: b.created_at,
+      })),
+    });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── LLM 튜닝용 데이터셋 export ────────────────
+app.get('/api/data/export/dataset', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('api_cost')
+      .select('story_text,sec_opening,sec_story,sec_reflection,sec_gift_music,sec_closing,lyrics,suno_gift,detected_emotions,dj_tone,music_genre')
+      .not('full_text', 'is', null)
+      .order('created_at', { ascending: false });
+    if(error) throw error;
+
+    // JSONL 형태 (LLM fine-tuning 표준 포맷)
+    const dataset = (data||[]).map(r => ({
+      input: {
+        story: r.story_text,
+        tone: r.dj_tone,
+        genre: r.music_genre,
+        emotions: r.detected_emotions,
+      },
+      output: {
+        opening: r.sec_opening,
+        story_intro: r.sec_story,
+        reflection: r.sec_reflection,
+        gift_music: r.sec_gift_music,
+        closing: r.sec_closing,
+        lyrics: r.lyrics,
+        suno_prompt: r.suno_gift,
+      }
+    })).filter(r => r.input.story && r.output.opening);
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="blossom_dataset.jsonl"');
+    res.send(dataset.map(d => JSON.stringify(d)).join('\n'));
   } catch(err) {
     res.status(500).json({ error: err.message });
   }
