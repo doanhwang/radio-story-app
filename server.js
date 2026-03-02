@@ -360,18 +360,39 @@ app.delete('/api/stories', async (req, res) => {
   }
 });
 
-// ─── 편지 저장 ────────────────────────────────
-app.post('/api/letters', async (req, res) => {
+// ─── 편지 저장 (JSON or FormData 음성) ───────
+app.post('/api/letters', upload.single('voice'), async (req, res) => {
   try {
-    const { from_name, to_name, title, text, relation, emotions } = req.body;
-    if(!from_name || !to_name || !text)
+    const b = req.body;
+    const from_name = b.from_name, to_name = b.to_name;
+    if(!from_name || !to_name)
       return res.status(400).json({ error: '필수 항목 누락' });
+
+    let voice_url = null;
+    if(req.file){
+      const ext = req.file.originalname.split('.').pop() || 'webm';
+      const filename = `letter_${uuidv4()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('voices').upload(filename, req.file.buffer, { contentType: req.file.mimetype, upsert:false });
+      if(!upErr){
+        const { data } = supabase.storage.from('voices').getPublicUrl(filename);
+        voice_url = data.publicUrl;
+      }
+    }
+
+    let emotions = b.emotions || [];
+    if(typeof emotions === 'string'){ try{ emotions=JSON.parse(emotions); }catch(e){ emotions=[]; } }
 
     const letter = {
       id: uuidv4(),
-      from_name, to_name, title: title || `${from_name}이(가) ${to_name}에게`,
-      text, relation: relation || 'anyone',
-      emotions: emotions || [],
+      from_name, to_name,
+      from_phone: b.from_phone || null,
+      to_phone:   b.to_phone   || null,
+      title: b.title || `${from_name}이(가) ${to_name}에게`,
+      text:  b.text  || '',
+      relation: b.relation || 'anyone',
+      emotions,
+      voice_url,
       broadcast_text: null,
       broadcast_at: null,
     };
