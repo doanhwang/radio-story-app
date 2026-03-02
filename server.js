@@ -234,7 +234,7 @@ app.post('/api/dj/generate', async (req, res) => {
         // 1) 메모리에 항상 저장
         usageMemory.unshift(record);
         if (usageMemory.length > 500) usageMemory.pop();
-        console.log(\`💰 DJ 생성: $\${totalCost.toFixed(6)} | \${detectedEmotions.join(',')||'감정없음'} | 가사\${lyricsLines}줄\`);
+        console.log(`💰 DJ 생성: $${totalCost.toFixed(6)} | ${detectedEmotions.join(',')||'감정없음'} | 가사${lyricsLines}줄`);
 
         // 2) Supabase 저장
         supabase.from('api_cost').insert([record]).then(({ error }) => {
