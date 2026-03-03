@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💌 편지 목록 — BLOSSOM</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=Noto+Sans+KR:wght@300;400;500&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #faf8f4;
+  --paper: #fffef9;
+  --ink: #2c2418;
+  --ink-light: #6b5f4e;
+  --ink-faint: #b8aa96;
+  --accent: #c8622a;
+  --accent-pale: #f9ede4;
+  --gold: #c8962a;
+  --border: #e8e0d0;
+  --green: #2e9e6b;
+  --green-pale: #e8f5ee;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Noto Sans KR', sans-serif;
+  background:var(--bg); color:var(--ink); min-height:100vh;
+}
+
+/* 헤더 */
+.header {
+  background:var(--paper);
+  border-bottom:1px solid var(--border);
+  padding:1.5rem 2rem;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:100;
+  box-shadow:0 2px 12px rgba(44,36,24,0.06);
+}
+.header-left { display:flex; align-items:center; gap:0.8rem; }
+.header-icon { font-size:1.8rem; }
+.header-title { font-family:'Noto Serif KR',serif; font-size:1.3rem; font-weight:600; }
+.header-sub { font-size:0.75rem; color:var(--ink-faint); margin-top:0.1rem; }
+.header-nav { display:flex; gap:0.5rem; }
+.nav-btn {
+  padding:0.4rem 0.9rem; border-radius:20px; font-size:0.8rem;
+  text-decoration:none; border:1px solid var(--border);
+  color:var(--ink-light); background:transparent; cursor:pointer;
+  transition:all 0.2s;
+}
+.nav-btn:hover { background:var(--accent-pale); border-color:var(--accent); color:var(--accent); }
+
+/* 필터 바 */
+.filter-bar {
+  max-width:900px; margin:1.5rem auto 0; padding:0 1.5rem;
+  display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;
+}
+.filter-btn {
+  padding:0.35rem 0.9rem; border-radius:20px; font-size:0.78rem;
+  border:1px solid var(--border); background:var(--paper);
+  color:var(--ink-light); cursor:pointer; transition:all 0.2s;
+}
+.filter-btn.active {
+  background:var(--accent); border-color:var(--accent); color:#fff;
+}
+.count-badge {
+  background:var(--accent-pale); color:var(--accent);
+  font-size:0.72rem; padding:0.15rem 0.5rem;
+  border-radius:10px; margin-left:0.3rem;
+  font-family:'DM Mono',monospace;
+}
+.search-box {
+  margin-left:auto;
+  padding:0.35rem 0.8rem; border-radius:20px;
+  border:1px solid var(--border); background:var(--paper);
+  font-size:0.8rem; color:var(--ink); outline:none; width:180px;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.search-box:focus { border-color:var(--accent); }
+
+/* 목록 */
+.list-wrap {
+  max-width:900px; margin:1.5rem auto 4rem; padding:0 1.5rem;
+}
+.list-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
+  gap:1rem;
+}
+
+/* 편지 카드 */
+.letter-card {
+  background:var(--paper); border:1px solid var(--border);
+  border-radius:8px; padding:1.4rem;
+  box-shadow:0 2px 10px rgba(44,36,24,0.05);
+  cursor:pointer; transition:all 0.25s;
+  position:relative; overflow:hidden;
+  text-decoration:none; color:inherit; display:block;
+}
+.letter-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg, var(--accent), var(--gold));
+  opacity:0; transition:opacity 0.2s;
+}
+.letter-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(44,36,24,0.1); }
+.letter-card:hover::before { opacity:1; }
+
+.card-top {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  margin-bottom:0.8rem;
+}
+.card-from {
+  font-size:0.75rem; color:var(--ink-faint);
+  font-family:'DM Mono',monospace;
+}
+.card-from strong { color:var(--ink-light); font-weight:500; }
+.card-badge {
+  font-size:0.65rem; padding:0.15rem 0.5rem; border-radius:10px;
+  border:1px solid var(--border);
+}
+.badge-new { background:#fff8e1; border-color:#f0c040; color:#a07800; }
+.badge-read { background:var(--green-pale); border-color:#a0d4b8; color:var(--green); }
+
+.card-preview {
+  font-family:'Noto Serif KR',serif;
+  font-size:0.88rem; line-height:1.7; color:var(--ink);
+  display:-webkit-box; -webkit-line-clamp:3;
+  -webkit-box-orient:vertical; overflow:hidden;
+  margin-bottom:0.8rem;
+}
+
+.card-meta {
+  display:flex; align-items:center; justify-content:space-between;
+  font-size:0.72rem; color:var(--ink-faint);
+  font-family:'DM Mono',monospace;
+  border-top:1px solid var(--border); padding-top:0.7rem; margin-top:0.2rem;
+}
+.card-emotions { display:flex; gap:0.3rem; flex-wrap:wrap; }
+.etag {
+  font-size:0.65rem; padding:0.1rem 0.45rem;
+  background:var(--accent-pale); border:1px solid rgba(200,98,42,0.2);
+  border-radius:10px; color:var(--accent);
+  font-family:'Noto Sans KR',sans-serif;
+}
+.relation-tag {
+  font-size:0.65rem; padding:0.1rem 0.45rem;
+  background:#f0eaf8; border:1px solid #d4b8f0;
+  border-radius:10px; color:#7c5cbf;
+  font-family:'Noto Sans KR',sans-serif;
+}
+
+/* 빈 상태 */
+.empty {
+  text-align:center; padding:4rem 1rem; color:var(--ink-faint);
+}
+.empty-icon { font-size:3rem; margin-bottom:1rem; }
+.empty-text { font-size:0.9rem; }
+
+/* 로딩 */
+.loading {
+  text-align:center; padding:4rem;
+  color:var(--ink-faint); font-size:0.9rem;
+}
+.spinner {
+  width:28px; height:28px; border:2px solid var(--border);
+  border-top-color:var(--accent); border-radius:50%;
+  animation:spin 0.8s linear infinite; margin:0 auto 1rem;
+}
+@keyframes spin { to { transform:rotate(360deg) } }
+
+/* 통계 바 */
+.stats-bar {
+  max-width:900px; margin:1rem auto 0; padding:0 1.5rem;
+  display:flex; gap:1.5rem;
+}
+.stat-item { font-size:0.78rem; color:var(--ink-faint); }
+.stat-item strong { color:var(--accent); font-size:1rem; font-family:'DM Mono',monospace; }
+
+@media(max-width:600px) {
+  .header { padding:1rem; }
+  .list-grid { grid-template-columns:1fr; }
+  .filter-bar { gap:0.4rem; }
+  .search-box { width:100%; margin-left:0; }
+  .stats-bar { gap:1rem; flex-wrap:wrap; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <span class="header-icon">💌</span>
+    <div>
+      <div class="header-title">편지함</div>
+      <div class="header-sub">BLOSSOM 라디오 편지 목록</div>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <a href="/admin" class="nav-btn">📋 어드민</a>
+    <a href="/letter" class="nav-btn">✍️ 편지 쓰기</a>
+    <a href="/data" class="nav-btn">📊 데이터</a>
+  </nav>
+</div>
+
+<div class="stats-bar" id="statsBar">
+  <div class="stat-item">불러오는 중...</div>
+</div>
+
+<div class="filter-bar">
+  <button class="filter-btn active" onclick="setFilter('all')">전체 <span class="count-badge" id="cnt-all">-</span></button>
+  <button class="filter-btn" onclick="setFilter('당사자')">🎤 당사자 <span class="count-badge" id="cnt-당사자">-</span></button>
+  <button class="filter-btn" onclick="setFilter('부모')">👨‍👩‍👧 부모 <span class="count-badge" id="cnt-부모">-</span></button>
+  <button class="filter-btn" onclick="setFilter('지원사')">🤝 지원사 <span class="count-badge" id="cnt-지원사">-</span></button>
+  <input class="search-box" id="searchBox" placeholder="🔍 이름·내용 검색..." oninput="renderList()">
+</div>
+
+<div class="list-wrap">
+  <div id="loadingEl" class="loading">
+    <div class="spinner"></div>
+    편지를 불러오는 중...
+  </div>
+  <div class="list-grid" id="listGrid" style="display:none"></div>
+  <div id="emptyEl" class="empty" style="display:none">
+    <div class="empty-icon">📭</div>
+    <div class="empty-text">아직 편지가 없습니다</div>
+  </div>
+</div>
+
+<script>
+let allLetters = [];
+let currentFilter = 'all';
+
+async function load() {
+  try {
+    const res = await fetch('/api/letters');
+    const data = await res.json();
+    allLetters = data.items || [];
+    updateCounts();
+    updateStats();
+    renderList();
+  } catch(e) {
+    document.getElementById('loadingEl').innerHTML = '<div class="empty-icon">⚠️</div><div class="empty-text">불러오기 실패: ' + e.message + '</div>';
+  }
+}
+
+function updateStats() {
+  const total = allLetters.length;
+  const withBroadcast = allLetters.filter(l => l.broadcast_at).length;
+  const today = new Date().toDateString();
+  const todayCount = allLetters.filter(l => new Date(l.created_at).toDateString() === today).length;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-item">전체 <strong>${total}</strong>통</div>
+    <div class="stat-item">방송된 편지 <strong>${withBroadcast}</strong>통</div>
+    <div class="stat-item">오늘 <strong>${todayCount}</strong>통</div>
+  `;
+}
+
+function updateCounts() {
+  const cnt = { all: allLetters.length, '당사자': 0, '부모': 0, '지원사': 0 };
+  allLetters.forEach(l => {
+    const r = l.relation || '';
+    if (r.includes('당사자')) cnt['당사자']++;
+    else if (r.includes('부모') || r.includes('가족')) cnt['부모']++;
+    else if (r.includes('지원') || r.includes('활동')) cnt['지원사']++;
+  });
+  Object.entries(cnt).forEach(([k,v]) => {
+    const el = document.getElementById('cnt-' + k);
+    if (el) el.textContent = v;
+  });
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.closest('.filter-btn').classList.add('active');
+  renderList();
+}
+
+function renderList() {
+  const q = document.getElementById('searchBox').value.toLowerCase();
+  let filtered = allLetters.filter(l => {
+    if (currentFilter !== 'all') {
+      const r = l.relation || '';
+      if (currentFilter === '당사자' && !r.includes('당사자')) return false;
+      if (currentFilter === '부모' && !r.includes('부모') && !r.includes('가족')) return false;
+      if (currentFilter === '지원사' && !r.includes('지원') && !r.includes('활동')) return false;
+    }
+    if (q) {
+      const text = (l.content || '') + (l.from_name || '') + (l.to_name || '');
+      if (!text.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('loadingEl').style.display = 'none';
+
+  if (filtered.length === 0) {
+    document.getElementById('listGrid').style.display = 'none';
+    document.getElementById('emptyEl').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('emptyEl').style.display = 'none';
+  document.getElementById('listGrid').style.display = 'grid';
+  document.getElementById('listGrid').innerHTML = filtered.map(l => cardHTML(l)).join('');
+}
+
+function cardHTML(l) {
+  const date = new Date(l.created_at);
+  const dateStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+  const isNew = (Date.now() - date.getTime()) < 1000*60*60*24;
+  const emotions = Array.isArray(l.emotions) ? l.emotions : (l.emotions ? l.emotions.split(',') : []);
+  const preview = (l.content || '내용 없음').slice(0, 120);
+
+  return `<a href="/letter/${l.id}" class="letter-card">
+    <div class="card-top">
+      <div class="card-from">
+        <strong>${l.from_name || '익명'}</strong> → ${l.to_name || '?'}
+      </div>
+      <span class="card-badge ${isNew ? 'badge-new' : 'badge-read'}">${isNew ? '✨ 새 편지' : '📖 열람'}</span>
+    </div>
+    <div class="card-preview">${preview}${l.content && l.content.length > 120 ? '...' : ''}</div>
+    <div class="card-meta">
+      <div class="card-emotions">
+        ${l.relation ? `<span class="relation-tag">${l.relation}</span>` : ''}
+        ${emotions.slice(0,3).map(e => `<span class="etag">${e}</span>`).join('')}
+      </div>
+      <span>${dateStr}</span>
+    </div>
+  </a>`;
+}
+
+load();
+</script>
+</body>
+</html>
